@@ -1,0 +1,551 @@
+//
+//  IngredientScannerView.swift
+//  PureRoot
+//
+
+import SwiftUI
+
+struct AILookupResult: Codable {
+    let risk: String
+    let concern: String
+    let purpose: String
+    let alternative: String
+
+    var riskLevel: IngredientRisk {
+        IngredientRisk(rawValue: risk.lowercased()) ?? .moderate
+    }
+}
+
+struct IngredientScannerView: View {
+    @State private var inputText: String = ""
+    @State private var analysis: IngredientAnalysis?
+    @State private var expandedID: AnalyzedIngredient.ID?
+    @State private var aiResults: [AnalyzedIngredient.ID: AILookupResult] = [:]
+    @State private var lookupInFlight: Set<AnalyzedIngredient.ID> = []
+    @State private var lookupError: String?
+
+    @State private var showScanner = false
+    @State private var scannedProduct: OpenFoodFactsProduct?
+    @State private var productLookupInFlight = false
+    @State private var productLookupError: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    intro
+                    scanCard
+                    if let scannedProduct {
+                        productCard(scannedProduct)
+                    }
+                    inputCard
+                    if productLookupInFlight {
+                        ProgressView("Looking up product…")
+                            .padding()
+                    }
+                    if let productLookupError {
+                        Text(productLookupError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    if let analysis {
+                        if analysis.hasCarcinogens {
+                            carcinogenBanner(analysis)
+                        }
+                        scoreCard(analysis)
+                        summaryStrip(analysis)
+                        ingredientsList(analysis)
+                    }
+                    if let lookupError {
+                        Text(lookupError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Ingredient Scanner")
+            .sheet(isPresented: $showScanner) {
+                BarcodeScannerSheet { code in
+                    Task { await lookupBarcode(code) }
+                }
+            }
+        }
+    }
+
+    private var intro: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "magnifyingglass.circle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.green)
+            Text("Scan a barcode or paste an ingredient list to see what's really in it.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 8)
+    }
+
+    private var scanCard: some View {
+        Button {
+            scannedProduct = nil
+            productLookupError = nil
+            showScanner = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "barcode.viewfinder")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Scan barcode").font(.headline).foregroundStyle(.white)
+                    Text("Camera-scan any product")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .padding()
+            .background(Color.green)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func productCard(_ product: OpenFoodFactsProduct) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            if let url = product.imageURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFit()
+                } placeholder: {
+                    Image(systemName: "shippingbox.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: 72, height: 72)
+                .background(Color.prInputField)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(product.displayName).font(.headline)
+                if let brand = product.brandName {
+                    Text(brand).font(.caption).foregroundStyle(.secondary)
+                }
+                if let nova = product.nova_group, let desc = product.novaDescription {
+                    HStack(spacing: 4) {
+                        Text("NOVA \(nova)")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(novaColor(nova).opacity(0.18))
+                            .foregroundStyle(novaColor(nova))
+                            .clipShape(Capsule())
+                        Text(desc)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    private func novaColor(_ group: Int) -> Color {
+        switch group {
+        case 1: return .green
+        case 2: return .mint
+        case 3: return .orange
+        case 4: return .red
+        default: return .gray
+        }
+    }
+
+    private var inputCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Ingredients list")
+                .font(.headline)
+
+            ZStack(alignment: .topLeading) {
+                if inputText.isEmpty {
+                    Text("e.g. Sugar, enriched wheat flour, soybean oil, red 40, BHT…")
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
+                }
+                TextEditor(text: $inputText)
+                    .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+            }
+            .padding(8)
+            .background(Color.prInputField)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            HStack {
+                Button {
+                    inputText = IngredientAnalyzer.exampleLabel
+                } label: {
+                    Label("Load example", systemImage: "doc.text")
+                        .font(.footnote)
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Button {
+                    analyze()
+                } label: {
+                    Label("Analyze", systemImage: "sparkles")
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding()
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    private func carcinogenBanner(_ analysis: IngredientAnalysis) -> some View {
+        let detected = analysis.carcinogensDetected
+        let highest = detected.map { $0.level }.max(by: { lhs, rhs in
+            order(lhs) < order(rhs)
+        }) ?? .possible
+        let names = detected.map { $0.name }.joined(separator: ", ")
+
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text(highest.shortLabel + " detected")
+                    .font(.headline)
+                    .foregroundStyle(.red)
+            }
+            Text(names)
+                .font(.footnote)
+                .foregroundStyle(.primary)
+            Text(highest.fullLabel)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.red.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.red.opacity(0.4), lineWidth: 1)
+        )
+    }
+
+    private func order(_ c: CarcinogenClass) -> Int {
+        switch c {
+        case .none: return 0
+        case .possible: return 1
+        case .probable: return 2
+        case .known: return 3
+        }
+    }
+
+    private func scoreCard(_ analysis: IngredientAnalysis) -> some View {
+        HStack(spacing: 20) {
+            ZStack {
+                Circle().fill(analysis.gradeColor.opacity(0.15))
+                Circle().stroke(analysis.gradeColor, lineWidth: 4)
+                VStack(spacing: 0) {
+                    Text("\(analysis.score)")
+                        .font(.system(size: 32, weight: .bold))
+                    Text("/ 100")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 96, height: 96)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Grade \(analysis.grade)")
+                    .font(.title.bold())
+                    .foregroundStyle(analysis.gradeColor)
+                Text(verdict(for: analysis))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16).stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    private func summaryStrip(_ analysis: IngredientAnalysis) -> some View {
+        HStack(spacing: 8) {
+            countTile(value: analysis.avoidCount, label: "Avoid", color: .red)
+            countTile(value: analysis.cautionCount, label: "Caution", color: .orange)
+            countTile(value: analysis.cleanCount, label: "Clean", color: .green)
+            countTile(value: analysis.unknownCount, label: "Unknown", color: .gray)
+        }
+    }
+
+    private func countTile(value: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.title3.bold())
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func ingredientsList(_ analysis: IngredientAnalysis) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Breakdown")
+                .font(.headline)
+                .padding(.leading, 4)
+
+            VStack(spacing: 8) {
+                ForEach(analysis.ingredients) { ingredient in
+                    ingredientRow(ingredient)
+                }
+            }
+        }
+    }
+
+    private func ingredientRow(_ ingredient: AnalyzedIngredient) -> some View {
+        let isExpanded = expandedID == ingredient.id
+        let aiResult = aiResults[ingredient.id]
+        let isLoading = lookupInFlight.contains(ingredient.id)
+        let effectiveRisk = aiResult?.riskLevel ?? ingredient.risk
+        let canExpand = ingredient.entry != nil || aiResult != nil
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                guard canExpand else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    expandedID = isExpanded ? nil : ingredient.id
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(effectiveRisk.color)
+                        .frame(width: 10, height: 10)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(ingredient.displayName)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            if let entry = ingredient.entry, entry.carcinogen.isAny {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        if ingredient.isUnknown && aiResult == nil {
+                            Text("Not in database")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        } else if aiResult != nil && ingredient.isUnknown {
+                            Text("AI analyzed")
+                                .font(.caption2)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    Spacer()
+
+                    if ingredient.isUnknown && aiResult == nil && !isLoading {
+                        Button {
+                            Task { await lookupWithAI(ingredient) }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                Text("Look up")
+                            }
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundStyle(.green)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    } else if isLoading {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text(effectiveRisk.label)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(effectiveRisk.color.opacity(0.15))
+                            .foregroundStyle(effectiveRisk.color)
+                            .clipShape(Capsule())
+                        if canExpand {
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .buttonStyle(.plain)
+            .disabled(!canExpand)
+
+            if isExpanded {
+                if let entry = ingredient.entry {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if entry.carcinogen.isAny {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.red)
+                                Text(entry.carcinogen.fullLabel)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        detailRow(title: "Health concern", body: entry.concern)
+                        detailRow(title: "Why it's used", body: entry.purpose)
+                        if entry.alternative != "—" && !entry.alternative.isEmpty {
+                            detailRow(title: "Clean alternative", body: entry.alternative)
+                        }
+                    }
+                    .padding([.horizontal, .bottom])
+                } else if let aiResult {
+                    VStack(alignment: .leading, spacing: 10) {
+                        detailRow(title: "Health concern", body: aiResult.concern)
+                        detailRow(title: "Why it's used", body: aiResult.purpose)
+                        if !aiResult.alternative.isEmpty {
+                            detailRow(title: "Clean alternative", body: aiResult.alternative)
+                        }
+                        Text("Analyzed by Claude")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding([.horizontal, .bottom])
+                }
+            }
+        }
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    private func detailRow(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+            Text(body)
+                .font(.footnote)
+                .foregroundStyle(.primary)
+        }
+    }
+
+    private func analyze() {
+        withAnimation { analysis = IngredientAnalyzer.analyze(inputText) }
+        expandedID = nil
+        aiResults.removeAll()
+        lookupError = nil
+    }
+
+    private func lookupBarcode(_ code: String) async {
+        productLookupInFlight = true
+        productLookupError = nil
+        defer { productLookupInFlight = false }
+
+        do {
+            let product = try await OpenFoodFactsClient.fetch(barcode: code)
+            scannedProduct = product
+            if let ingredients = product.ingredients_text, !ingredients.isEmpty {
+                inputText = ingredients
+                analyze()
+            } else {
+                productLookupError = "Product found but it has no ingredient list in the database."
+            }
+        } catch {
+            productLookupError = error.localizedDescription
+        }
+    }
+
+    private func lookupWithAI(_ ingredient: AnalyzedIngredient) async {
+        lookupInFlight.insert(ingredient.id)
+        defer { lookupInFlight.remove(ingredient.id) }
+        lookupError = nil
+
+        let system = """
+        You analyze food ingredients for safety. Reply with ONLY valid JSON in this exact shape — no markdown fences, no preamble:
+        {
+          "risk": "avoid" | "caution" | "moderate" | "safe" | "clean",
+          "concern": "one or two sentences on health concerns",
+          "purpose": "one sentence on why food manufacturers use it",
+          "alternative": "a clean alternative, or empty string if none"
+        }
+        """
+        let prompt = "Analyze this food ingredient: \(ingredient.raw)"
+
+        do {
+            let model = loadPreferredModel() ?? .haiku
+            let raw = try await AnthropicClient.send(
+                system: system,
+                prompt: prompt,
+                model: model,
+                maxTokens: 512
+            )
+            guard let jsonText = AnthropicClient.extractJSON(from: raw),
+                  let data = jsonText.data(using: .utf8) else {
+                lookupError = "Couldn't parse AI response."
+                return
+            }
+            let result = try JSONDecoder().decode(AILookupResult.self, from: data)
+            aiResults[ingredient.id] = result
+            withAnimation { expandedID = ingredient.id }
+        } catch {
+            lookupError = error.localizedDescription
+        }
+    }
+
+    private func loadPreferredModel() -> AnthropicModel? {
+        guard let raw = UserDefaults.standard.string(forKey: "pureroot.anthropic.model") else { return nil }
+        return AnthropicModel(rawValue: raw)
+    }
+
+    private func verdict(for analysis: IngredientAnalysis) -> String {
+        switch analysis.grade {
+        case "A": return "Excellent — mostly clean ingredients."
+        case "B": return "Good — a few concerns to be aware of."
+        case "C": return "Mixed bag — several ingredients to watch."
+        case "D": return "Concerning — many problematic ingredients."
+        default: return "Avoid — multiple harmful ingredients detected."
+        }
+    }
+}
+
+#Preview {
+    IngredientScannerView()
+}

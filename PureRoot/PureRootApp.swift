@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct PureRootApp: App {
+    @State private var subscriptions = SubscriptionManager()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -25,8 +27,25 @@ struct PureRootApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootGate()
+                .environment(subscriptions)
         }
         .modelContainer(sharedModelContainer)
+    }
+}
+
+private struct RootGate: View {
+    @Environment(SubscriptionManager.self) private var subscriptions
+
+    var body: some View {
+        #if DEBUG
+        ContentView()
+        #else
+        if subscriptions.isSubscribed {
+            ContentView()
+        } else {
+            PaywallView()
+        }
+        #endif
     }
 }
