@@ -29,7 +29,7 @@ struct AboutView: View {
                 .foregroundStyle(.green)
             Text("PureRoot")
                 .font(.largeTitle.bold())
-            Text("Know what's in your food. Find clean sources near you.")
+            Text("Know what's in your food. Find clean sources.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -39,7 +39,7 @@ struct AboutView: View {
 
     private var mission: some View {
         sectionCard(title: "Our mission") {
-            Text("Americans deserve to know exactly what's in the food they're feeding their families. PureRoot exists to make that information instant, honest, and actionable — and to connect you directly with small farms, butchers, food hubs, and clean shippers so eating real food is easier than eating processed food.")
+            Text("Americans deserve to know exactly what's in the food they're feeding their families. PureRoot makes that information instant, honest, and actionable — and connects you directly with small farms, butchers, food hubs, and clean shippers so eating real food is easier than eating processed food.")
                 .font(.footnote)
         }
     }

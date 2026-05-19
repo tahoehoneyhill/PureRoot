@@ -5,24 +5,10 @@
 
 import SwiftUI
 
-struct AILookupResult: Codable {
-    let risk: String
-    let concern: String
-    let purpose: String
-    let alternative: String
-
-    var riskLevel: IngredientRisk {
-        IngredientRisk(rawValue: risk.lowercased()) ?? .moderate
-    }
-}
-
 struct IngredientScannerView: View {
     @State private var inputText: String = ""
     @State private var analysis: IngredientAnalysis?
     @State private var expandedID: AnalyzedIngredient.ID?
-    @State private var aiResults: [AnalyzedIngredient.ID: AILookupResult] = [:]
-    @State private var lookupInFlight: Set<AnalyzedIngredient.ID> = []
-    @State private var lookupError: String?
 
     @State private var showScanner = false
     @State private var scannedProduct: OpenFoodFactsProduct?
@@ -57,13 +43,6 @@ struct IngredientScannerView: View {
                         scoreCard(analysis)
                         summaryStrip(analysis)
                         ingredientsList(analysis)
-                    }
-                    if let lookupError {
-                        Text(lookupError)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
                     }
                 }
                 .padding()
@@ -334,10 +313,7 @@ struct IngredientScannerView: View {
 
     private func ingredientRow(_ ingredient: AnalyzedIngredient) -> some View {
         let isExpanded = expandedID == ingredient.id
-        let aiResult = aiResults[ingredient.id]
-        let isLoading = lookupInFlight.contains(ingredient.id)
-        let effectiveRisk = aiResult?.riskLevel ?? ingredient.risk
-        let canExpand = ingredient.entry != nil || aiResult != nil
+        let canExpand = ingredient.entry != nil
 
         return VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -348,7 +324,7 @@ struct IngredientScannerView: View {
             } label: {
                 HStack(spacing: 12) {
                     Circle()
-                        .fill(effectiveRisk.color)
+                        .fill(ingredient.risk.color)
                         .frame(width: 10, height: 10)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
@@ -363,49 +339,24 @@ struct IngredientScannerView: View {
                                     .foregroundStyle(.red)
                             }
                         }
-                        if ingredient.isUnknown && aiResult == nil {
+                        if ingredient.isUnknown {
                             Text("Not in database")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                        } else if aiResult != nil && ingredient.isUnknown {
-                            Text("AI analyzed")
-                                .font(.caption2)
-                                .foregroundStyle(.green)
                         }
                     }
                     Spacer()
-
-                    if ingredient.isUnknown && aiResult == nil && !isLoading {
-                        Button {
-                            Task { await lookupWithAI(ingredient) }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "sparkles")
-                                Text("Look up")
-                            }
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.green.opacity(0.15))
-                            .foregroundStyle(.green)
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    } else if isLoading {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Text(effectiveRisk.label)
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(effectiveRisk.color.opacity(0.15))
-                            .foregroundStyle(effectiveRisk.color)
-                            .clipShape(Capsule())
-                        if canExpand {
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
+                    Text(ingredient.risk.label)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(ingredient.risk.color.opacity(0.15))
+                        .foregroundStyle(ingredient.risk.color)
+                        .clipShape(Capsule())
+                    if canExpand {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
                 }
                 .padding()
@@ -413,38 +364,24 @@ struct IngredientScannerView: View {
             .buttonStyle(.plain)
             .disabled(!canExpand)
 
-            if isExpanded {
-                if let entry = ingredient.entry {
-                    VStack(alignment: .leading, spacing: 10) {
-                        if entry.carcinogen.isAny {
-                            HStack(spacing: 6) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.red)
-                                Text(entry.carcinogen.fullLabel)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                        detailRow(title: "Health concern", body: entry.concern)
-                        detailRow(title: "Why it's used", body: entry.purpose)
-                        if entry.alternative != "—" && !entry.alternative.isEmpty {
-                            detailRow(title: "Clean alternative", body: entry.alternative)
+            if isExpanded, let entry = ingredient.entry {
+                VStack(alignment: .leading, spacing: 10) {
+                    if entry.carcinogen.isAny {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                            Text(entry.carcinogen.fullLabel)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.red)
                         }
                     }
-                    .padding([.horizontal, .bottom])
-                } else if let aiResult {
-                    VStack(alignment: .leading, spacing: 10) {
-                        detailRow(title: "Health concern", body: aiResult.concern)
-                        detailRow(title: "Why it's used", body: aiResult.purpose)
-                        if !aiResult.alternative.isEmpty {
-                            detailRow(title: "Clean alternative", body: aiResult.alternative)
-                        }
-                        Text("Analyzed by Claude")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                    detailRow(title: "Health concern", body: entry.concern)
+                    detailRow(title: "Why it's used", body: entry.purpose)
+                    if entry.alternative != "—" && !entry.alternative.isEmpty {
+                        detailRow(title: "Clean alternative", body: entry.alternative)
                     }
-                    .padding([.horizontal, .bottom])
                 }
+                .padding([.horizontal, .bottom])
             }
         }
         .background(Color.prCard)
@@ -470,8 +407,6 @@ struct IngredientScannerView: View {
     private func analyze() {
         withAnimation { analysis = IngredientAnalyzer.analyze(inputText) }
         expandedID = nil
-        aiResults.removeAll()
-        lookupError = nil
     }
 
     private func lookupBarcode(_ code: String) async {
@@ -491,48 +426,6 @@ struct IngredientScannerView: View {
         } catch {
             productLookupError = error.localizedDescription
         }
-    }
-
-    private func lookupWithAI(_ ingredient: AnalyzedIngredient) async {
-        lookupInFlight.insert(ingredient.id)
-        defer { lookupInFlight.remove(ingredient.id) }
-        lookupError = nil
-
-        let system = """
-        You analyze food ingredients for safety. Reply with ONLY valid JSON in this exact shape — no markdown fences, no preamble:
-        {
-          "risk": "avoid" | "caution" | "moderate" | "safe" | "clean",
-          "concern": "one or two sentences on health concerns",
-          "purpose": "one sentence on why food manufacturers use it",
-          "alternative": "a clean alternative, or empty string if none"
-        }
-        """
-        let prompt = "Analyze this food ingredient: \(ingredient.raw)"
-
-        do {
-            let model = loadPreferredModel() ?? .haiku
-            let raw = try await AnthropicClient.send(
-                system: system,
-                prompt: prompt,
-                model: model,
-                maxTokens: 512
-            )
-            guard let jsonText = AnthropicClient.extractJSON(from: raw),
-                  let data = jsonText.data(using: .utf8) else {
-                lookupError = "Couldn't parse AI response."
-                return
-            }
-            let result = try JSONDecoder().decode(AILookupResult.self, from: data)
-            aiResults[ingredient.id] = result
-            withAnimation { expandedID = ingredient.id }
-        } catch {
-            lookupError = error.localizedDescription
-        }
-    }
-
-    private func loadPreferredModel() -> AnthropicModel? {
-        guard let raw = UserDefaults.standard.string(forKey: "pureroot.anthropic.model") else { return nil }
-        return AnthropicModel(rawValue: raw)
     }
 
     private func verdict(for analysis: IngredientAnalysis) -> String {
