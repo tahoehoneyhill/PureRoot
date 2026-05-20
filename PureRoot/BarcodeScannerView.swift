@@ -14,10 +14,19 @@ struct BarcodeScannerSheet: View {
     @State private var manualCode: String = ""
     let onCode: (String) -> Void
 
+    private var cameraReady: Bool {
+        // Only use camera if permission key is declared in Info.plist —
+        // otherwise iOS crashes the app the moment the camera is touched.
+        guard Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription") != nil else {
+            return false
+        }
+        return DataScannerViewController.isSupported && DataScannerViewController.isAvailable
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
+                if cameraReady {
                     BarcodeCameraView { code in
                         onCode(code)
                         dismiss()
@@ -27,11 +36,9 @@ struct BarcodeScannerSheet: View {
                         Image(systemName: "barcode.viewfinder")
                             .font(.system(size: 48))
                             .foregroundStyle(.secondary)
-                        Text("Camera scanning isn't available on this device.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Text("(Simulator has no real camera — enter a barcode manually below.)")
+                        Text("Enter the barcode manually")
+                            .font(.headline)
+                        Text("Camera scanning will be enabled in a future update.")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                             .multilineTextAlignment(.center)
