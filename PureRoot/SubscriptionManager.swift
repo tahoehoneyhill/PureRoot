@@ -10,7 +10,7 @@ import StoreKit
 @MainActor
 @Observable
 final class SubscriptionManager {
-    static let yearlyProductID = "com.pureroot.yearly"
+    static let yearlyProductID = "com.purerootfood.yearly"
 
     private(set) var yearlyProduct: Product?
     private(set) var isSubscribed = false

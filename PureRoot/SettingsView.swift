@@ -20,9 +20,9 @@ struct SettingsView: View {
         Form {
             Section("App") {
                 LabeledContent("Version", value: "\(appVersion) (\(buildNumber))")
-                Link("PureRoot website", destination: URL(string: "https://pureroot.app")!)
-                Link("Privacy Policy", destination: URL(string: "https://pureroot.app/privacy")!)
-                Link("Terms of Service", destination: URL(string: "https://pureroot.app/terms")!)
+                Link("PureRootFood website", destination: URL(string: "https://purerootfood.app")!)
+                Link("Privacy Policy", destination: URL(string: "https://purerootfood.app/privacy")!)
+                Link("Terms of Service", destination: URL(string: "https://purerootfood.app/terms")!)
             }
 
             Section("Subscription") {
@@ -40,7 +40,7 @@ struct SettingsView: View {
             }
 
             Section {
-                Text("PureRoot is an independent project. We don't accept advertising or sponsorships from food companies.")
+                Text("PureRootFood is an independent project. We don't accept advertising or sponsorships from food companies.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

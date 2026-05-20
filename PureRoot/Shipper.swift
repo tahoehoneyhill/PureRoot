@@ -251,7 +251,7 @@ struct NationwideShippersView: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
-                    detailRow(title: "Why PureRoot recommends it", body: shipper.why)
+                    detailRow(title: "Why PureRootFood recommends it", body: shipper.why)
                     detailRow(title: "How it works", body: shipper.howItWorks)
                     if !shipper.products.isEmpty {
                         chipRow(title: "Carries", values: shipper.products)

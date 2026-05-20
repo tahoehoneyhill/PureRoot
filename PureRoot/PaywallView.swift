@@ -33,7 +33,7 @@ struct PaywallView: View {
             Image(systemName: "leaf.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(.green)
-            Text("PureRoot")
+            Text("PureRootFood")
                 .font(.largeTitle.bold())
             Text("Know what's in your food. Find clean sources near you.")
                 .font(.subheadline)

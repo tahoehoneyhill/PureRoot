@@ -61,7 +61,7 @@ enum OpenFoodFactsClient {
         guard let url = URL(string: urlString) else { throw FetchError.notFound }
 
         var request = URLRequest(url: url)
-        request.setValue("PureRoot/1.0 (iOS app, contact@pureroot.app)", forHTTPHeaderField: "User-Agent")
+        request.setValue("PureRootFood/1.0 (iOS app, contact@purerootfood.app)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 20
 
         let (data, response) = try await URLSession.shared.data(for: request)

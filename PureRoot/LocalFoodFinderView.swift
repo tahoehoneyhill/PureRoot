@@ -47,7 +47,7 @@ enum LocalDirectoryData {
                             url: "https://slowfoodusa.org/", category: "Community", icon: "person.3.fill"),
         LocalDirectoryEntry(id: "openfoodfacts", name: "Open Food Facts",
                             tagline: "Free product ingredient database",
-                            description: "The barcode database powering PureRoot's scanner. Look up any product to see ingredients, additives, and NOVA processing scores.",
+                            description: "The barcode database powering PureRootFood's scanner. Look up any product to see ingredients, additives, and NOVA processing scores.",
                             url: "https://world.openfoodfacts.org/", category: "Product Lookup", icon: "barcode.viewfinder"),
     ]
 }
@@ -128,7 +128,7 @@ struct LocalFoodFinderView: View {
     }
 
     private var footer: some View {
-        Text("PureRoot doesn't operate these directories — they're independent, well-established US resources we trust. Coming soon: built-in zip-code search.")
+        Text("PureRootFood doesn't operate these directories — they're independent, well-established US resources we trust. Coming soon: built-in zip-code search.")
             .font(.caption2)
             .foregroundStyle(.tertiary)
             .multilineTextAlignment(.center)

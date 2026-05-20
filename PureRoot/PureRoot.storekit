@@ -15,7 +15,7 @@
     {
       "id" : "21500000",
       "localizations" : [],
-      "name" : "PureRoot Membership",
+      "name" : "PureRootFood Membership",
       "subscriptions" : [
         {
           "adHocOffers" : [],
@@ -31,14 +31,14 @@
           },
           "localizations" : [
             {
-              "description" : "Full access to PureRoot's ingredient scanner, local food finder, and nationwide shipper directory.",
-              "displayName" : "PureRoot Yearly",
+              "description" : "Full access to PureRootFood's ingredient scanner, local food finder, and nationwide shipper directory.",
+              "displayName" : "PureRootFood Yearly",
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.pureroot.yearly",
+          "productID" : "com.purerootfood.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "PureRoot Yearly",
+          "referenceName" : "PureRootFood Yearly",
           "subscriptionGroupID" : "21500000",
           "type" : "RecurringSubscription"
         }
