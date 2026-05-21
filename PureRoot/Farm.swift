@@ -66,23 +66,104 @@ enum FarmData {
 }
 
 struct FarmDirectoryView: View {
+    @Environment(\.openURL) private var openURL
     @State private var selectedState: String = "All"
     @State private var expandedID: String?
+    @State private var zipCode: String = ""
+    @State private var radius: Int = 50
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
                     header
+                    zipFinderCard
+                    sectionLabel("Featured farms across the US")
                     stateFilter
                     ForEach(filtered) { farm in
                         farmCard(farm)
                     }
-                    findMoreCard
                 }
                 .padding(.vertical)
             }
             .navigationTitle("Farms")
+        }
+    }
+
+    private var zipFinderCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Find farms near you")
+                .font(.headline)
+            HStack {
+                TextField("Zip code", text: $zipCode)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .padding(10)
+                    .background(Color.prInputField)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .frame(maxWidth: 140)
+
+                Picker("Radius", selection: $radius) {
+                    Text("10 mi").tag(10)
+                    Text("25 mi").tag(25)
+                    Text("50 mi").tag(50)
+                    Text("100 mi").tag(100)
+                }
+                .pickerStyle(.menu)
+                .padding(.horizontal, 8)
+                .background(Color.prInputField)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            Button {
+                searchFarms()
+            } label: {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                    Text(isValidZip ? "Find farms near \(zipCode)" : "Find farms near me")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isValidZip ? Color.green : Color.green.opacity(0.4))
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+            .disabled(!isValidZip)
+
+            Text("Searches the LocalHarvest directory (40,000+ verified US farms and CSAs). Results open in Safari.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding()
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.prDivider, lineWidth: 0.5)
+        )
+        .padding(.horizontal)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        HStack {
+            Text(text).font(.headline)
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private var isValidZip: Bool {
+        zipCode.count == 5 && zipCode.allSatisfy { $0.isNumber }
+    }
+
+    private func searchFarms() {
+        guard isValidZip else { return }
+        let urlString = "https://www.localharvest.org/search.jsp?zip=\(zipCode)&search_radius=\(radius)"
+        if let url = URL(string: urlString) {
+            openURL(url)
         }
     }
 
@@ -182,28 +263,4 @@ struct FarmDirectoryView: View {
         .padding(.horizontal)
     }
 
-    private var findMoreCard: some View {
-        Link(destination: URL(string: "https://www.localharvest.org/")!) {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Find more local farms").font(.headline).foregroundStyle(.white)
-                    Text("Search 40,000+ US farms by zip on LocalHarvest")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-                Spacer()
-                Image(systemName: "arrow.up.right.square")
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-            .padding()
-            .background(Color.green)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
 }
