@@ -20,9 +20,8 @@ struct SettingsView: View {
         Form {
             Section("App") {
                 LabeledContent("Version", value: "\(appVersion) (\(buildNumber))")
-                Link("PureRootFood website", destination: URL(string: "https://purerootfood.app")!)
-                Link("Privacy Policy", destination: URL(string: "https://purerootfood.app/privacy")!)
-                Link("Terms of Service", destination: URL(string: "https://purerootfood.app/terms")!)
+                Link("Privacy Policy", destination: URL(string: "https://www.apple.com/legal/privacy/")!)
+                Link("Terms of Use (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
             }
 
             Section("Subscription") {
