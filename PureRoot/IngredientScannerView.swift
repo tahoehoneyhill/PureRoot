@@ -11,6 +11,7 @@ struct IngredientScannerView: View {
     @State private var expandedID: AnalyzedIngredient.ID?
 
     @State private var showScanner = false
+    @State private var showSources = false
     @State private var scannedProduct: OpenFoodFactsProduct?
     @State private var productLookupInFlight = false
     @State private var productLookupError: String?
@@ -40,18 +41,34 @@ struct IngredientScannerView: View {
                         if analysis.hasCarcinogens {
                             carcinogenBanner(analysis)
                         }
+                        if analysis.hasContaminantExposures {
+                            contaminantExposureCard(analysis)
+                        }
                         scoreCard(analysis)
                         summaryStrip(analysis)
                         ingredientsList(analysis)
+                        sourcesCard
                     }
                 }
                 .padding()
             }
             .navigationTitle("Ingredient Scanner")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSources = true
+                    } label: {
+                        Label("Sources", systemImage: "books.vertical")
+                    }
+                }
+            }
             .sheet(isPresented: $showScanner) {
                 BarcodeScannerSheet { code in
                     Task { await lookupBarcode(code) }
                 }
+            }
+            .sheet(isPresented: $showSources) {
+                sourcesSheet
             }
         }
     }
@@ -221,6 +238,10 @@ struct IngredientScannerView: View {
             Text(highest.fullLabel)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+            Link(destination: Citations.iarcURL) {
+                Label("Source: IARC Monographs (WHO)", systemImage: "link")
+                    .font(.caption2.weight(.semibold))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -229,6 +250,75 @@ struct IngredientScannerView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 14).stroke(Color.red.opacity(0.4), lineWidth: 1)
         )
+    }
+
+    private func contaminantExposureCard(_ analysis: IngredientAnalysis) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "drop.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Likely contaminant exposure")
+                    .font(.headline)
+                    .foregroundStyle(.orange)
+            }
+            Text("Inferred from conventional ingredients and packaging. Choose organic or verified residue-free alternatives to avoid.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 8) {
+                ForEach(analysis.contaminantExposures) { exposure in
+                    contaminantRow(exposure)
+                }
+            }
+
+            Link(destination: Citations.usdaPDPURL) {
+                Label("Source: USDA Pesticide Data Program", systemImage: "link")
+                    .font(.caption2.weight(.semibold))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.orange.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.4), lineWidth: 1)
+        )
+    }
+
+    private func contaminantRow(_ exposure: ContaminantExposure) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(exposure.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if exposure.carcinogen.isAny {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                }
+                Spacer()
+            }
+            Text("Triggered by: \(exposure.triggeredBy)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(exposure.detail)
+                .font(.footnote)
+                .foregroundStyle(.primary)
+            if exposure.carcinogen.isAny {
+                Text(exposure.carcinogen.fullLabel)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.red)
+            }
+            let citation = Citations.source(forExposureTitle: exposure.title)
+            Link(destination: citation.url) {
+                Label("Source: \(citation.label)", systemImage: "link")
+                    .font(.caption2.weight(.semibold))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func order(_ c: CarcinogenClass) -> Int {
@@ -262,6 +352,14 @@ struct IngredientScannerView: View {
                 Text(verdict(for: analysis))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Button {
+                    showSources = true
+                } label: {
+                    Label("Sources & citations", systemImage: "books.vertical")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
             }
             Spacer()
         }
@@ -380,6 +478,11 @@ struct IngredientScannerView: View {
                     if entry.alternative != "—" && !entry.alternative.isEmpty {
                         detailRow(title: "Clean alternative", body: entry.alternative)
                     }
+                    let citation = Citations.source(for: entry)
+                    Link(destination: citation.url) {
+                        Label("Source: \(citation.label)", systemImage: "link")
+                            .font(.caption2.weight(.semibold))
+                    }
                 }
                 .padding([.horizontal, .bottom])
             }
@@ -389,6 +492,73 @@ struct IngredientScannerView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    private var sourcesSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Risk ratings, carcinogen classifications, and residue information in PureRootFood are based on the following public sources. Each flagged ingredient in a report also links directly to the source for its specific claim.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    sourcesCard
+                }
+                .padding()
+            }
+            .navigationTitle("Sources & Citations")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showSources = false }
+                }
+            }
+        }
+    }
+
+    private var sourcesCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "books.vertical.fill")
+                    .foregroundStyle(.green)
+                Text("Sources & Citations")
+                    .font(.headline)
+            }
+            Text("Risk ratings, carcinogen classifications, and residue information in this report are based on the following public sources:")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Citations.all) { source in
+                    Link(destination: source.url) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "link")
+                                .font(.caption2)
+                                .foregroundStyle(.green)
+                                .padding(.top, 3)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(source.name)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.green)
+                                Text(source.detail)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+            }
+
+            Text(Citations.disclaimer)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.prDivider, lineWidth: 0.5)
         )
     }
 

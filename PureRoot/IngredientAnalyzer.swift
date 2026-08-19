@@ -80,6 +80,15 @@ enum CarcinogenClass: String {
     }
 }
 
+struct ContaminantExposure: Identifiable {
+    let id = UUID()
+    let title: String
+    let triggeredBy: String
+    let detail: String
+    let risk: IngredientRisk
+    let carcinogen: CarcinogenClass
+}
+
 struct IngredientEntry {
     let canonicalName: String
     let aliases: [String]
@@ -126,6 +135,7 @@ struct IngredientAnalysis {
     let score: Int
     let grade: String
     let ingredients: [AnalyzedIngredient]
+    let contaminantExposures: [ContaminantExposure]
 
     var avoidCount: Int { ingredients.filter { $0.risk == .avoid }.count }
     var cautionCount: Int { ingredients.filter { $0.risk == .caution }.count }
@@ -140,6 +150,7 @@ struct IngredientAnalysis {
     }
 
     var hasCarcinogens: Bool { !carcinogensDetected.isEmpty }
+    var hasContaminantExposures: Bool { !contaminantExposures.isEmpty }
 
     var gradeColor: Color {
         switch grade {
@@ -154,6 +165,90 @@ struct IngredientAnalysis {
 
 enum IngredientAnalyzer {
     static let exampleLabel = "Sugar, enriched wheat flour, high fructose corn syrup, partially hydrogenated soybean oil, salt, baking soda, sodium aluminum phosphate, soy lecithin, mono and diglycerides, natural and artificial flavors, red 40, yellow 5, BHT, citric acid"
+
+    private struct ContaminantRule {
+        let triggerPatterns: [String]
+        let organicExempt: Bool
+        let title: String
+        let detail: String
+        let risk: IngredientRisk
+        let carcinogen: CarcinogenClass
+    }
+
+    private static let contaminantRules: [ContaminantRule] = [
+        ContaminantRule(
+            triggerPatterns: ["wheat", "oats", "oat flour", "rolled oats", "barley", "rye", "spelt"],
+            organicExempt: true,
+            title: "Glyphosate residue likely",
+            detail: "Conventional wheat, oats, barley, and rye are routinely sprayed with glyphosate (Roundup) as a pre-harvest drying agent. USDA and independent testing detects glyphosate residue in the majority of conventional grain products.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["corn", "cornstarch", "corn starch", "corn flour", "cornmeal", "corn meal", "corn syrup", "corn oil"],
+            organicExempt: true,
+            title: "Atrazine & glyphosate residue likely",
+            detail: "Conventional US corn is the single largest use of atrazine (an EU-banned endocrine disruptor) and glyphosate. Residues are routinely detected in corn-derived ingredients.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["soy", "soybean", "soya", "soy protein", "soy flour"],
+            organicExempt: true,
+            title: "Glyphosate & 2,4-D residue likely",
+            detail: "Over 90% of US soybeans are genetically modified for glyphosate tolerance (Roundup Ready) and increasingly 2,4-D. Residues are common in conventional soy-derived ingredients.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["canola", "rapeseed"],
+            organicExempt: true,
+            title: "Glyphosate residue likely",
+            detail: "Conventional canola is genetically modified for glyphosate tolerance and is also typically chemically extracted with hexane.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["beet sugar", "sugar beet"],
+            organicExempt: true,
+            title: "Glyphosate residue possible (sugar beet)",
+            detail: "Roughly half of US sugar comes from genetically modified sugar beets sprayed with glyphosate.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["cottonseed", "cotton seed"],
+            organicExempt: true,
+            title: "Glyphosate & dicamba residue likely",
+            detail: "Conventional cotton is GMO for glyphosate and dicamba tolerance, and is regulated as a non-food crop — meaning pesticide tolerances are higher than for food crops.",
+            risk: .avoid,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["microwave popcorn", "popcorn bag"],
+            organicExempt: false,
+            title: "PFAS exposure likely (packaging)",
+            detail: "Microwave popcorn bags are commonly lined with PFAS forever chemicals to resist grease. PFAS migrates into the food during heating.",
+            risk: .avoid,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["non-stick", "nonstick", "teflon", "fluoropolymer", "fluorinated"],
+            organicExempt: false,
+            title: "PFAS / PTFE exposure",
+            detail: "Non-stick and fluoropolymer surfaces are part of the PFAS family. They shed microparticles into food and release toxic fumes when overheated.",
+            risk: .avoid,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["grease-resistant", "grease resistant", "wax-coated", "wax coated"],
+            organicExempt: false,
+            title: "PFAS-coated packaging possible",
+            detail: "Grease-resistant wrappers, fast-food containers, and bakery liners frequently contain PFAS coatings that migrate into food.",
+            risk: .avoid,
+            carcinogen: .probable
+        ),
+    ]
 
     static let database: [IngredientEntry] = [
         IngredientEntry(canonicalName: "High Fructose Corn Syrup", aliases: ["hfcs", "high-fructose corn syrup"], risk: .avoid,
@@ -204,6 +299,74 @@ enum IngredientAnalyzer {
                         purpose: "Whitens and brightens candies, dairy, and powdered foods.",
                         alternative: "Avoid products that need to look unnaturally white.",
                         carcinogen: .possible),
+
+        // MARK: Forever chemicals (PFAS)
+        IngredientEntry(canonicalName: "PFOA", aliases: ["perfluorooctanoic acid", "perfluorooctanoate", "c8"], risk: .avoid,
+                        concern: "Forever chemical that bioaccumulates and never breaks down. IARC reclassified PFOA as a Group 1 known human carcinogen in 2024. Linked to kidney and testicular cancer, thyroid disease, and immune suppression.",
+                        purpose: "Historically used to make non-stick coatings, grease-resistant food wrappers, and stain-proof packaging.",
+                        alternative: "Glass, stainless steel, or uncoated paper packaging.",
+                        carcinogen: .known),
+        IngredientEntry(canonicalName: "PFOS", aliases: ["perfluorooctane sulfonate", "perfluorooctanesulfonic acid"], risk: .avoid,
+                        concern: "Forever chemical classified by IARC as a possible human carcinogen (Group 2B). Persists in the body and the environment for decades.",
+                        purpose: "Used in stain repellents, food packaging coatings, and firefighting foam.",
+                        alternative: "PFAS-free packaging and cookware.",
+                        carcinogen: .possible),
+        IngredientEntry(canonicalName: "PFAS", aliases: ["perfluoroalkyl", "polyfluoroalkyl", "per- and polyfluoroalkyl", "forever chemical", "forever chemicals"], risk: .avoid,
+                        concern: "Umbrella term for thousands of synthetic 'forever chemicals' that do not break down in the body or environment. Linked to cancer, immune dysfunction, hormone disruption, and developmental harm.",
+                        purpose: "Grease- and water-resistant coatings on fast-food wrappers, microwave popcorn bags, takeout containers, and pizza boxes.",
+                        alternative: "Unwrapped or paper-wrapped foods from sources that explicitly state PFAS-free packaging.",
+                        carcinogen: .probable),
+        IngredientEntry(canonicalName: "PTFE", aliases: ["polytetrafluoroethylene", "teflon", "fluoropolymer", "fluoropolymers"], risk: .avoid,
+                        concern: "Synthetic fluoropolymer in the PFAS family. Can shed microparticles into food and releases toxic fumes when overheated. Manufactured using other PFAS.",
+                        purpose: "Non-stick cookware coatings and processing equipment surfaces.",
+                        alternative: "Cast iron, stainless steel, carbon steel, or ceramic-coated cookware."),
+        IngredientEntry(canonicalName: "GenX", aliases: ["hfpo-da", "hexafluoropropylene oxide dimer acid"], risk: .avoid,
+                        concern: "Replacement chemical for PFOA that has been shown in EPA studies to cause similar liver, kidney, and immune-system damage. Still a forever chemical.",
+                        purpose: "Newer generation PFAS used in food contact materials.",
+                        alternative: "Avoid products with fluorinated or 'non-stick' food contact materials."),
+
+        // MARK: Pesticide & herbicide residues
+        IngredientEntry(canonicalName: "Glyphosate", aliases: ["roundup", "glyphosate residue"], risk: .avoid,
+                        concern: "World's most widely used herbicide. Classified by IARC as a Group 2A probable human carcinogen. Routinely detected as a residue on conventional wheat, oats, soy, and corn products. Endocrine disruptor and gut-microbiome disruptor.",
+                        purpose: "Broad-spectrum weed killer and pre-harvest desiccant on grains.",
+                        alternative: "Certified organic or 'Glyphosate Residue Free' verified products.",
+                        carcinogen: .probable),
+        IngredientEntry(canonicalName: "Atrazine", aliases: [], risk: .avoid,
+                        concern: "Endocrine disruptor banned in the European Union since 2004. Linked to birth defects, hormone disruption, and reproductive harm. Heavily applied to US corn — frequent groundwater contaminant.",
+                        purpose: "Herbicide used on conventional corn, sorghum, and sugarcane.",
+                        alternative: "Certified organic corn and grain products."),
+        IngredientEntry(canonicalName: "2,4-D", aliases: ["2,4-dichlorophenoxyacetic acid", "2 4-d"], risk: .avoid,
+                        concern: "IARC Group 2B (possibly carcinogenic to humans). A component of Agent Orange. Linked to non-Hodgkin lymphoma in agricultural worker studies.",
+                        purpose: "Broadleaf herbicide used on conventional grains, lawns, and pastures.",
+                        alternative: "Certified organic grain and meat products.",
+                        carcinogen: .possible),
+        IngredientEntry(canonicalName: "Dicamba", aliases: [], risk: .avoid,
+                        concern: "Volatile herbicide notorious for drift damage to neighboring farms. Suspected endocrine and developmental toxicant.",
+                        purpose: "Broadleaf herbicide paired with genetically modified soy and cotton.",
+                        alternative: "Certified organic or non-GMO verified products."),
+        IngredientEntry(canonicalName: "Chlorpyrifos", aliases: [], risk: .avoid,
+                        concern: "Organophosphate insecticide linked to lower IQ, ADHD, and developmental delays in children. Banned for food use in the US in 2021, but residues persist on imported produce.",
+                        purpose: "Insecticide on conventional fruits, vegetables, and nuts.",
+                        alternative: "Certified organic produce, especially for children's foods."),
+        IngredientEntry(canonicalName: "Paraquat", aliases: ["paraquat dichloride"], risk: .avoid,
+                        concern: "One of the most acutely toxic herbicides in use. Strong epidemiological link to Parkinson's disease. Banned in the EU and over 30 other countries; still used in the US.",
+                        purpose: "Herbicide on conventional soy, corn, cotton, and orchard crops.",
+                        alternative: "Certified organic products."),
+        IngredientEntry(canonicalName: "Malathion", aliases: [], risk: .avoid,
+                        concern: "IARC Group 2A probable human carcinogen. Organophosphate that interferes with the nervous system.",
+                        purpose: "Insecticide on conventional grain, fruit, and vegetable crops.",
+                        alternative: "Certified organic produce and grains.",
+                        carcinogen: .probable),
+        IngredientEntry(canonicalName: "Neonicotinoids", aliases: ["neonicotinoid", "imidacloprid", "clothianidin", "thiamethoxam"], risk: .avoid,
+                        concern: "Systemic insecticides absorbed into the entire plant — cannot be washed off. Drivers of pollinator collapse. Detected in conventional baby foods and produce.",
+                        purpose: "Seed treatments and sprays on conventional fruits, vegetables, and grains.",
+                        alternative: "Certified organic produce."),
+        IngredientEntry(canonicalName: "DDT", aliases: ["dichlorodiphenyltrichloroethane", "ddt residue"], risk: .avoid,
+                        concern: "IARC Group 2A probable human carcinogen. Banned for US agricultural use in 1972 but still detected in fatty fish, dairy, and meat due to bioaccumulation in soil and water.",
+                        purpose: "Legacy organochlorine insecticide.",
+                        alternative: "Lower-fat or plant-based protein sources from clean watersheds.",
+                        carcinogen: .probable),
+
         IngredientEntry(canonicalName: "Aspartame", aliases: [], risk: .caution,
                         concern: "Classified as 'possibly carcinogenic to humans' by the WHO in 2023.",
                         purpose: "Artificial sweetener.",
@@ -365,6 +528,8 @@ enum IngredientAnalyzer {
             return AnalyzedIngredient(raw: raw, entry: entry)
         }
 
+        let exposures = inferContaminantExposures(from: lowered)
+
         var score = 100
         for ing in ingredients {
             if let entry = ing.entry {
@@ -373,6 +538,7 @@ enum IngredientAnalyzer {
                 score -= 1
             }
         }
+        score -= min(exposures.count * 2, 8)
         score = max(0, min(100, score))
 
         let grade: String
@@ -384,6 +550,30 @@ enum IngredientAnalyzer {
         default: grade = "F"
         }
 
-        return IngredientAnalysis(score: score, grade: grade, ingredients: ingredients)
+        return IngredientAnalysis(score: score, grade: grade, ingredients: ingredients, contaminantExposures: exposures)
+    }
+
+    private static func inferContaminantExposures(from fragments: [(String, String)]) -> [ContaminantExposure] {
+        var exposures: [ContaminantExposure] = []
+        var seenTitles = Set<String>()
+
+        for rule in contaminantRules {
+            for (raw, low) in fragments {
+                guard rule.triggerPatterns.contains(where: { low.contains($0) }) else { continue }
+                if rule.organicExempt && low.contains("organic") { continue }
+                if seenTitles.contains(rule.title) { continue }
+                seenTitles.insert(rule.title)
+                exposures.append(ContaminantExposure(
+                    title: rule.title,
+                    triggeredBy: raw,
+                    detail: rule.detail,
+                    risk: rule.risk,
+                    carcinogen: rule.carcinogen
+                ))
+                break
+            }
+        }
+
+        return exposures
     }
 }

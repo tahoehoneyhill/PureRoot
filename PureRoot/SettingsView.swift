@@ -20,15 +20,9 @@ struct SettingsView: View {
         Form {
             Section("App") {
                 LabeledContent("Version", value: "\(appVersion) (\(buildNumber))")
-                Link("Privacy Policy", destination: URL(string: "https://www.apple.com/legal/privacy/")!)
-                Link("Terms of Use (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-            }
-
-            Section("Subscription") {
-                Link("Manage subscription",
-                     destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
-                Link("Restore purchases",
-                     destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
+                Link("Support", destination: AppLinks.support)
+                Link("Privacy Policy", destination: AppLinks.privacy)
+                Link("Terms of Use (EULA)", destination: AppLinks.terms)
             }
 
             Section("Credits") {

@@ -1,0 +1,7 @@
+title: PureRootFood
+description: Know what's in your food. Find clean sources near you.
+theme: jekyll-theme-cayman
+baseurl: "/purerootfood"
+
+# Show a tidy footer link back home on every page
+show_downloads: false

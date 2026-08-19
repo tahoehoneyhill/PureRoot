@@ -38,7 +38,7 @@ struct BarcodeScannerSheet: View {
                             .foregroundStyle(.secondary)
                         Text("Enter the barcode manually")
                             .font(.headline)
-                        Text("Camera scanning will be enabled in a future update.")
+                        Text("Camera scanning isn't available on this device, or camera access was denied in Settings.")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                             .multilineTextAlignment(.center)

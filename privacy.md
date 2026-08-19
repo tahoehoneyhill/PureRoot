@@ -26,7 +26,6 @@ The app stores the following data locally on your iPhone using Apple-provided st
 
 - **Bookmarked shippers:** stored in iOS UserDefaults
 - **App preferences:** stored in iOS UserDefaults
-- **Subscription status:** verified by Apple's StoreKit framework
 
 Deleting the app removes all locally stored data.
 
@@ -37,9 +36,6 @@ When you use specific features, your device connects directly to the following s
 ### Open Food Facts (`world.openfoodfacts.org`)
 When you look up a product by barcode, your device sends the barcode number to Open Food Facts, a free, open-source product database operated by a non-profit. Open Food Facts has its own privacy policy at https://world.openfoodfacts.org/privacy. They do not require authentication and do not associate barcodes with users.
 
-### Apple App Store / StoreKit
-Subscription purchases, renewals, and cancellations are handled entirely by Apple's StoreKit framework. Apple's privacy policy governs that interaction: https://www.apple.com/legal/privacy/.
-
 ### External directory websites
 Tapping a link in the Local tab (LocalHarvest, USDA, EatWild, etc.) opens that website in your browser. Once you leave the app, those sites' own privacy policies apply.
 
@@ -47,11 +43,9 @@ Tapping a link in the Local tab (LocalHarvest, USDA, EatWild, etc.) opens that w
 
 The app may request permission to access your device camera for barcode scanning. The camera feed is processed entirely on-device using Apple's VisionKit framework. Camera images and recognized barcodes are never recorded, stored, or transmitted off your device.
 
-## Subscriptions and payments
+## Payments
 
-PureRootFood offers a $4.99/year subscription with a 7-day free trial through Apple's standard In-App Purchase system. Apple — not PureRootFood — handles all payment information. We never see your credit card, billing address, or Apple ID. Apple shares only anonymized purchase metadata with us (subscription status, renewal date) so the app knows whether to grant access.
-
-You can cancel anytime in Settings → Apple ID → Subscriptions on your iPhone.
+PureRootFood is completely free. There are no in-app purchases, subscriptions, or payments of any kind, so we never process or receive any payment information.
 
 ## Children
 
@@ -64,4 +58,4 @@ If we ever change this policy, the updated version will be posted at this URL wi
 ## Contact
 
 Questions about this privacy policy:
-- Email: contact@purerootfood.app
+- Email: tahoehoneyhill@gmail.com

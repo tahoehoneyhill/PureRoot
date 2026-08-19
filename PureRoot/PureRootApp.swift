@@ -6,46 +6,21 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct PureRootApp: App {
-    @State private var subscriptions = SubscriptionManager()
-
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
     var body: some Scene {
         WindowGroup {
-            RootGate()
-                .environment(subscriptions)
+            ContentView()
         }
-        .modelContainer(sharedModelContainer)
     }
 }
 
-private struct RootGate: View {
-    @Environment(SubscriptionManager.self) private var subscriptions
-
-    var body: some View {
-        #if DEBUG
-        ContentView()
-        #else
-        if subscriptions.isSubscribed {
-            ContentView()
-        } else {
-            PaywallView()
-        }
-        #endif
-    }
+/// Single source of truth for the app's external links.
+/// These are live GitHub Pages URLs specific to PureRootFood; keep them in sync
+/// with the Support URL and Privacy Policy fields in App Store Connect.
+enum AppLinks {
+    static let support = URL(string: "https://tahoehoneyhill.github.io/purerootfood/support")!
+    static let privacy = URL(string: "https://tahoehoneyhill.github.io/purerootfood/privacy")!
+    static let terms = URL(string: "https://tahoehoneyhill.github.io/purerootfood/terms")!
 }

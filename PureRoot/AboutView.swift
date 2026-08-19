@@ -14,6 +14,7 @@ struct AboutView: View {
                     mission
                     gradeGuide
                     chemicalsScanned
+                    sources
                     settingsLink
                 }
                 .padding()
@@ -84,7 +85,39 @@ struct AboutView: View {
                 bulletRow("Industrial seed oils (soybean, canola, corn)")
                 bulletRow("Vague 'natural flavors' and undisclosed additives")
                 bulletRow("Titanium dioxide, caramel coloring class III/IV")
+                bulletRow("Forever chemicals (PFAS, PFOA, PFOS, PTFE, GenX, fluoropolymers)")
+                bulletRow("Weed killers & pesticide residues (glyphosate, atrazine, 2,4-D, dicamba, paraquat)")
+                bulletRow("Insecticide residues (chlorpyrifos, malathion, neonicotinoids, DDT)")
                 bulletRow("IARC-listed carcinogens (Groups 1, 2A, 2B)")
+            }
+        }
+    }
+
+    private var sources: some View {
+        sectionCard(title: "Sources & citations") {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Citations.all) { source in
+                    Link(destination: source.url) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "link")
+                                .font(.caption2)
+                                .foregroundStyle(.green)
+                                .padding(.top, 3)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(source.name)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.green)
+                                Text(source.detail)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                Text(Citations.disclaimer)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
     }
