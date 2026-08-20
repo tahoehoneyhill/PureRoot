@@ -248,6 +248,66 @@ enum IngredientAnalyzer {
             risk: .avoid,
             carcinogen: .probable
         ),
+
+        // MARK: Heavy metals (absorbed from soil/water — not reduced by organic certification)
+        ContaminantRule(
+            triggerPatterns: ["rice", "rice flour", "brown rice syrup", "rice syrup", "rice cereal", "rice protein"],
+            organicExempt: false,
+            title: "Inorganic arsenic likely (rice)",
+            detail: "Rice takes up inorganic arsenic — an IARC Group 1 known human carcinogen — from soil and water far more than other grains. The FDA specifically tracks arsenic in rice and infant rice cereal under its \"Closer to Zero\" program.",
+            risk: .caution,
+            carcinogen: .known
+        ),
+        ContaminantRule(
+            triggerPatterns: ["cocoa", "cacao", "dark chocolate", "chocolate liquor", "cocoa solids"],
+            organicExempt: false,
+            title: "Lead & cadmium likely (cocoa)",
+            detail: "Independent testing (Consumer Reports, As You Sow) repeatedly finds lead and cadmium in cocoa and dark chocolate. Cadmium is an IARC Group 1 known human carcinogen; lead is a cumulative neurotoxin with no safe level for children.",
+            risk: .caution,
+            carcinogen: .known
+        ),
+        ContaminantRule(
+            triggerPatterns: ["tuna", "swordfish", "shark", "king mackerel", "tilefish", "marlin", "bigeye"],
+            organicExempt: false,
+            title: "Methylmercury likely (predatory fish)",
+            detail: "Large predatory fish accumulate methylmercury, a potent neurotoxin the FDA and EPA advise children and pregnant women to limit. Methylmercury is classified by IARC as Group 2B (possibly carcinogenic to humans).",
+            risk: .caution,
+            carcinogen: .possible
+        ),
+        ContaminantRule(
+            triggerPatterns: ["cinnamon", "turmeric", "curry powder", "ground spice"],
+            organicExempt: false,
+            title: "Lead contamination possible (spices)",
+            detail: "The FDA has issued repeated recalls for lead-contaminated cinnamon and other ground spices, some intentionally adulterated to boost weight and color. Lead is a cumulative neurotoxin with no safe level for children.",
+            risk: .caution,
+            carcinogen: .none
+        ),
+        ContaminantRule(
+            triggerPatterns: ["apple juice", "grape juice", "white grape juice", "fruit juice concentrate"],
+            organicExempt: false,
+            title: "Arsenic & lead possible (fruit juice)",
+            detail: "The FDA sets action levels for inorganic arsenic and lead in apple and grape juice after repeated detections. Inorganic arsenic is an IARC Group 1 known human carcinogen.",
+            risk: .caution,
+            carcinogen: .possible
+        ),
+        ContaminantRule(
+            triggerPatterns: ["protein powder", "protein isolate", "pea protein", "whey protein", "rice protein powder", "collagen peptides"],
+            organicExempt: false,
+            title: "Heavy metals possible (protein powder)",
+            detail: "Clean Label Project and Consumer Reports testing has found lead, cadmium, and arsenic in many protein powders — especially plant-based ones, which concentrate metals from their crops.",
+            risk: .caution,
+            carcinogen: .none
+        ),
+
+        // MARK: Process-formed carcinogen
+        ContaminantRule(
+            triggerPatterns: ["potato chips", "french fries", "fried potato", "crackers", "roasted coffee", "instant coffee"],
+            organicExempt: false,
+            title: "Acrylamide likely (high-heat starch)",
+            detail: "Acrylamide forms when starchy foods are fried, baked, or roasted at high temperatures. It is classified by IARC as a Group 2A probable human carcinogen, and the FDA publishes guidance for reducing it.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
     ]
 
     static let database: [IngredientEntry] = [

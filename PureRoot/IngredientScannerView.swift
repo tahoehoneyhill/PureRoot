@@ -12,6 +12,7 @@ struct IngredientScannerView: View {
 
     @State private var showScanner = false
     @State private var showSources = false
+    @State private var alternativesCategory: ShipperCategory?
     @State private var scannedProduct: OpenFoodFactsProduct?
     @State private var productLookupInFlight = false
     @State private var productLookupError: String?
@@ -46,6 +47,9 @@ struct IngredientScannerView: View {
                         }
                         scoreCard(analysis)
                         summaryStrip(analysis)
+                        if SaferAlternatives.shouldSuggest(for: analysis) {
+                            saferAlternativesCard
+                        }
                         ingredientsList(analysis)
                         sourcesCard
                     }
@@ -69,6 +73,11 @@ struct IngredientScannerView: View {
             }
             .sheet(isPresented: $showSources) {
                 sourcesSheet
+            }
+            .sheet(item: $alternativesCategory) { category in
+                NationwideShippersView(initialCategory: category) {
+                    alternativesCategory = nil
+                }
             }
         }
     }
@@ -492,6 +501,70 @@ struct IngredientScannerView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    @ViewBuilder
+    private var saferAlternativesCard: some View {
+        let category = SaferAlternatives.inferCategory(from: inputText)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                Text("Try a cleaner alternative")
+                    .font(.headline)
+            }
+            Text("This product scored poorly. Here's a hand-vetted option that avoids the additives and contaminants above.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            if let brand = SaferAlternatives.namedBrand(for: category) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(brand.name)
+                        .font(.subheadline.weight(.semibold))
+                    Text(brand.highlight)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if let url = URL(string: brand.url) {
+                        Link(destination: url) {
+                            HStack(spacing: 4) {
+                                Text("Visit \(brand.name)")
+                                    .font(.footnote.weight(.semibold))
+                                Image(systemName: "arrow.up.right.square")
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color.prCard)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            Button {
+                alternativesCategory = category
+            } label: {
+                HStack {
+                    Text("Browse clean \(category.rawValue) options")
+                        .font(.footnote.weight(.semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity)
+                .background(Color.green.opacity(0.12))
+                .foregroundStyle(.green)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.green.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.35), lineWidth: 1)
         )
     }
 

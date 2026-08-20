@@ -88,6 +88,8 @@ struct AboutView: View {
                 bulletRow("Forever chemicals (PFAS, PFOA, PFOS, PTFE, GenX, fluoropolymers)")
                 bulletRow("Weed killers & pesticide residues (glyphosate, atrazine, 2,4-D, dicamba, paraquat)")
                 bulletRow("Insecticide residues (chlorpyrifos, malathion, neonicotinoids, DDT)")
+                bulletRow("Heavy metals (arsenic in rice, lead & cadmium in cocoa, mercury in fish, lead in spices)")
+                bulletRow("Acrylamide in fried and roasted starches")
                 bulletRow("IARC-listed carcinogens (Groups 1, 2A, 2B)")
             }
         }

@@ -134,10 +134,16 @@ enum ShipperData {
 }
 
 struct NationwideShippersView: View {
-    @State private var selectedCategory: ShipperCategory = .all
+    @State private var selectedCategory: ShipperCategory
     @State private var bookmarks: Set<String> = Self.loadBookmarks()
     @State private var expandedID: String?
     @State private var showBookmarksOnly = false
+    private let onDone: (() -> Void)?
+
+    init(initialCategory: ShipperCategory = .all, onDone: (() -> Void)? = nil) {
+        _selectedCategory = State(initialValue: initialCategory)
+        self.onDone = onDone
+    }
 
     var body: some View {
         NavigationStack {
@@ -161,6 +167,13 @@ struct NationwideShippersView: View {
                 .padding(.vertical)
             }
             .navigationTitle("Ships Nationwide")
+            .toolbar {
+                if let onDone {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done", action: onDone)
+                    }
+                }
+            }
         }
     }
 

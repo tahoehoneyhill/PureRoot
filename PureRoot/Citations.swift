@@ -37,6 +37,10 @@ enum Citations {
                name: "CDC / ATSDR — PFAS",
                detail: "Health effects of PFAS \"forever chemicals\"",
                url: URL(string: "https://www.atsdr.cdc.gov/pfas/index.html")!),
+        Source(id: "fda-czr",
+               name: "FDA — Closer to Zero",
+               detail: "Reducing lead, arsenic, cadmium & mercury in food",
+               url: URL(string: "https://www.fda.gov/food/environmental-contaminants-food/closer-zero-reducing-childhood-exposure-contaminants-foods")!),
         Source(id: "efsa",
                name: "EFSA — Food Additives",
                detail: "European food additive re-evaluations",
@@ -107,6 +111,21 @@ enum Citations {
     /// chemical named in the exposure title.
     static func source(forExposureTitle title: String) -> (label: String, url: URL) {
         let lowered = title.lowercased()
+        if lowered.contains("arsenic") {
+            return ("FDA — Arsenic in Food", URL(string: "https://www.fda.gov/food/environmental-contaminants-food/arsenic-food-and-dietary-supplements")!)
+        }
+        if lowered.contains("cadmium") {
+            return ("FDA — Closer to Zero (Heavy Metals)", URL(string: "https://www.fda.gov/food/environmental-contaminants-food/closer-zero-reducing-childhood-exposure-contaminants-foods")!)
+        }
+        if lowered.contains("lead") {
+            return ("FDA — Lead in Food", URL(string: "https://www.fda.gov/food/environmental-contaminants-food/lead-food-and-foodwares")!)
+        }
+        if lowered.contains("mercury") {
+            return ("FDA/EPA — Advice About Eating Fish", URL(string: "https://www.fda.gov/food/consumers/advice-about-eating-fish")!)
+        }
+        if lowered.contains("acrylamide") {
+            return ("FDA — Acrylamide", URL(string: "https://www.fda.gov/food/process-contaminants-food/acrylamide")!)
+        }
         if lowered.contains("pfas") || lowered.contains("ptfe") {
             return ("CDC / ATSDR — PFAS Health Effects", URL(string: "https://www.atsdr.cdc.gov/pfas/index.html")!)
         }
