@@ -39,6 +39,7 @@ struct IngredientScannerView: View {
                             .padding(.horizontal)
                     }
                     if let analysis {
+                        verdictBadge(analysis)
                         if analysis.hasCarcinogens {
                             carcinogenBanner(analysis)
                         }
@@ -224,6 +225,29 @@ struct IngredientScannerView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.prDivider, lineWidth: 0.5)
         )
+    }
+
+    private func verdictBadge(_ analysis: IngredientAnalysis) -> some View {
+        let verdict = analysis.verdict
+        return HStack(spacing: 14) {
+            Image(systemName: verdict.systemImage)
+                .font(.system(size: 34))
+                .foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verdict.title)
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                Text(analysis.verdictReason)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(verdict.color)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private func carcinogenBanner(_ analysis: IngredientAnalysis) -> some View {

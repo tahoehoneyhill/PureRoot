@@ -152,6 +152,60 @@ struct IngredientAnalysis {
     var hasCarcinogens: Bool { !carcinogensDetected.isEmpty }
     var hasContaminantExposures: Bool { !contaminantExposures.isEmpty }
 
+    /// A plain-language, at-a-glance safety call for shoppers deciding in the store.
+    enum Verdict {
+        case clean, caution, avoid
+
+        var title: String {
+            switch self {
+            case .clean: return "Clean — looks safe"
+            case .caution: return "Use caution"
+            case .avoid: return "Avoid"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .clean: return "checkmark.seal.fill"
+            case .caution: return "exclamationmark.triangle.fill"
+            case .avoid: return "xmark.octagon.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .clean: return .green
+            case .caution: return .orange
+            case .avoid: return .red
+            }
+        }
+    }
+
+    var verdict: Verdict {
+        if grade == "D" || grade == "F" || avoidCount > 0 { return .avoid }
+        if grade == "C" || cautionCount > 0 || hasCarcinogens || hasContaminantExposures { return .caution }
+        return .clean
+    }
+
+    /// Short reason line shown under the verdict.
+    var verdictReason: String {
+        switch verdict {
+        case .clean:
+            return "No flagged additives or contaminants detected."
+        case .caution:
+            var parts: [String] = []
+            if cautionCount > 0 { parts.append("\(cautionCount) ingredient\(cautionCount == 1 ? "" : "s") to watch") }
+            if hasCarcinogens { parts.append("possible carcinogen") }
+            if hasContaminantExposures { parts.append("likely contaminant exposure") }
+            return parts.isEmpty ? "Some ingredients worth a closer look." : parts.joined(separator: " · ")
+        case .avoid:
+            var parts: [String] = []
+            if avoidCount > 0 { parts.append("\(avoidCount) ingredient\(avoidCount == 1 ? "" : "s") to avoid") }
+            if hasCarcinogens { parts.append("carcinogen detected") }
+            return parts.isEmpty ? "Multiple problematic ingredients." : parts.joined(separator: " · ")
+        }
+    }
+
     var gradeColor: Color {
         switch grade {
         case "A": return .green
@@ -582,8 +636,8 @@ enum IngredientAnalyzer {
 
         let ingredients: [AnalyzedIngredient] = lowered.map { raw, low in
             let entry = database.first { entry in
-                if low.contains(entry.canonicalName.lowercased()) { return true }
-                return entry.aliases.contains { !$0.isEmpty && low.contains($0.lowercased()) }
+                if matches(low, term: entry.canonicalName) { return true }
+                return entry.aliases.contains { !$0.isEmpty && matches(low, term: $0) }
             }
             return AnalyzedIngredient(raw: raw, entry: entry)
         }
@@ -613,13 +667,44 @@ enum IngredientAnalyzer {
         return IngredientAnalysis(score: score, grade: grade, ingredients: ingredients, contaminantExposures: exposures)
     }
 
+    /// Whole-word(s) containment: true only when `term` appears in `text`
+    /// bounded by string edges or non-alphanumeric characters. This prevents
+    /// substring false positives such as "salt" matching "unsalted", "sugar"
+    /// matching "sugar-free", "rice" matching "licorice", or "corn" matching
+    /// "peppercorn". `text` is expected already lowercased.
+    static func matches(_ text: String, term: String) -> Bool {
+        let needle = term.lowercased()
+        guard !needle.isEmpty else { return false }
+        // A hyphen keeps a word intact so "sugar-free" is not read as "sugar"
+        // and "unsalted" is not read as "salt".
+        func isWordChar(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "-" }
+        var searchStart = text.startIndex
+        while let range = text.range(of: needle, range: searchStart..<text.endIndex) {
+            let beforeOK: Bool
+            if range.lowerBound == text.startIndex {
+                beforeOK = true
+            } else {
+                beforeOK = !isWordChar(text[text.index(before: range.lowerBound)])
+            }
+            let afterOK: Bool
+            if range.upperBound == text.endIndex {
+                afterOK = true
+            } else {
+                afterOK = !isWordChar(text[range.upperBound])
+            }
+            if beforeOK && afterOK { return true }
+            searchStart = text.index(after: range.lowerBound)
+        }
+        return false
+    }
+
     private static func inferContaminantExposures(from fragments: [(String, String)]) -> [ContaminantExposure] {
         var exposures: [ContaminantExposure] = []
         var seenTitles = Set<String>()
 
         for rule in contaminantRules {
             for (raw, low) in fragments {
-                guard rule.triggerPatterns.contains(where: { low.contains($0) }) else { continue }
+                guard rule.triggerPatterns.contains(where: { matches(low, term: $0) }) else { continue }
                 if rule.organicExempt && low.contains("organic") { continue }
                 if seenTitles.contains(rule.title) { continue }
                 seenTitles.insert(rule.title)

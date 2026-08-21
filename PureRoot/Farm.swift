@@ -12,54 +12,55 @@ struct Farm: Identifiable {
     let state: String
     let products: [String]
     let certifications: [String]
-    let rating: Double
-    let reviews: Int
     let emoji: String
     let description: String
 }
 
 enum FarmData {
+    /// Illustrative example profiles showing the kind of clean sourcing to look
+    /// for. These are not real listings or endorsements — use the zip-code
+    /// search above (LocalHarvest) to find verified farms near you.
     static let featured: [Farm] = [
-        Farm(id: "blueridge", name: "Blue Ridge Heritage Farm", state: "VA",
+        Farm(id: "blueridge", name: "Heritage Vegetable Farm (example)", state: "VA",
              products: ["Vegetables", "Eggs", "Herbs"],
              certifications: ["Organic", "Non-GMO"],
-             rating: 4.9, reviews: 142, emoji: "🌿",
-             description: "Family-owned since 1987. Heirloom vegetables, pasture-raised eggs, no synthetic inputs ever."),
-        Farm(id: "sundown", name: "Sundown Valley Ranch", state: "CA",
+             emoji: "🌿",
+             description: "Example profile: a family farm growing heirloom vegetables and pasture-raised eggs with no synthetic inputs."),
+        Farm(id: "sundown", name: "Grass-Fed Ranch (example)", state: "CA",
              products: ["Beef", "Pork", "Lamb"],
              certifications: ["Grass-Fed", "Humane Certified"],
-             rating: 4.8, reviews: 98, emoji: "🐄",
-             description: "100% grass-fed, pasture-raised meats. Animals never receive antibiotics or growth hormones."),
-        Farm(id: "morningdew", name: "Morning Dew Organics", state: "OR",
+             emoji: "🐄",
+             description: "Example profile: 100% grass-fed, pasture-raised meats from animals raised without antibiotics or added hormones."),
+        Farm(id: "morningdew", name: "Biodynamic Orchard (example)", state: "OR",
              products: ["Fruits", "Berries", "Jams"],
              certifications: ["USDA Organic", "Biodynamic"],
-             rating: 5.0, reviews: 211, emoji: "🍓",
-             description: "Certified biodynamic since 2003. Seasonal fruits and small-batch preserves without refined sugar."),
-        Farm(id: "clearwater", name: "Clearwater Dairy Co.", state: "VT",
+             emoji: "🍓",
+             description: "Example profile: a certified biodynamic orchard offering seasonal fruit and small-batch preserves without refined sugar."),
+        Farm(id: "clearwater", name: "Grass-Fed Dairy (example)", state: "VT",
              products: ["Milk", "Cheese", "Butter"],
              certifications: ["Organic", "A2 Milk"],
-             rating: 4.7, reviews: 87, emoji: "🧀",
-             description: "A2 protein dairy from grass-fed Jersey cows. No rBGH, no antibiotics. Low-temp pasteurized."),
-        Farm(id: "prairie", name: "Prairie Wind Grains", state: "KS",
+             emoji: "🧀",
+             description: "Example profile: A2-protein dairy from grass-fed Jersey cows, no rBGH or antibiotics."),
+        Farm(id: "prairie", name: "Regenerative Grain Farm (example)", state: "KS",
              products: ["Wheat", "Corn", "Oats"],
              certifications: ["Non-GMO", "Regenerative"],
-             rating: 4.6, reviews: 63, emoji: "🌾",
-             description: "Ancient grain varieties grown with regenerative practices. Stone-milled on site."),
-        Farm(id: "goldenhive", name: "Golden Hive Apiary", state: "TX",
+             emoji: "🌾",
+             description: "Example profile: ancient grain varieties grown with regenerative practices and stone-milled on site."),
+        Farm(id: "goldenhive", name: "Raw Honey Apiary (example)", state: "TX",
              products: ["Raw Honey", "Beeswax", "Pollen"],
              certifications: ["Raw", "Wildflower"],
-             rating: 4.9, reviews: 174, emoji: "🍯",
-             description: "Migratory-free hives managed with no chemicals. Unfiltered, unpasteurized raw honey."),
-        Farm(id: "sunflower", name: "Sunflower Hills Farm", state: "PA",
+             emoji: "🍯",
+             description: "Example profile: hives managed without chemicals, producing unfiltered, unpasteurized raw honey."),
+        Farm(id: "sunflower", name: "Heirloom Market Garden (example)", state: "PA",
              products: ["Heirloom Vegetables", "Microgreens", "Herbs"],
              certifications: ["Certified Naturally Grown"],
-             rating: 4.8, reviews: 91, emoji: "🌻",
-             description: "Three-generation family farm growing 60+ heirloom varieties using no-till regenerative methods."),
-        Farm(id: "cascade", name: "Cascade Mountain Poultry", state: "WA",
+             emoji: "🌻",
+             description: "Example profile: a small family farm growing 60+ heirloom varieties using no-till regenerative methods."),
+        Farm(id: "cascade", name: "Pasture Poultry Farm (example)", state: "WA",
              products: ["Pasture Chicken", "Eggs", "Turkey"],
              certifications: ["Pasture-Raised", "Soy-Free"],
-             rating: 4.7, reviews: 108, emoji: "🐔",
-             description: "Mobile coop pasture system. Birds rotated daily on fresh grass with non-GMO, soy-free feed."),
+             emoji: "🐔",
+             description: "Example profile: a mobile-coop pasture system rotating birds daily on fresh grass with non-GMO, soy-free feed."),
     ]
 
     static let allStates: [String] = ["All"] + Array(Set(featured.map { $0.state })).sorted()
@@ -78,7 +79,11 @@ struct FarmDirectoryView: View {
                 VStack(spacing: 12) {
                     header
                     zipFinderCard
-                    sectionLabel("Featured farms across the US")
+                    sectionLabel("Example farm profiles")
+                    Text("Illustrative examples of the clean sourcing to look for — not real listings or endorsements. Use the zip-code search above to find verified farms near you.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal)
                     stateFilter
                     ForEach(filtered) { farm in
                         farmCard(farm)
@@ -172,9 +177,10 @@ struct FarmDirectoryView: View {
             Image(systemName: "leaf.circle.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(.green)
-            Text("Featured small farms across the US.")
+            Text("Find real farms near you, plus examples of what clean sourcing looks like.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
 
@@ -223,14 +229,12 @@ struct FarmDirectoryView: View {
                                 .background(Color.green.opacity(0.15))
                                 .foregroundStyle(.green)
                                 .clipShape(Capsule())
-                            HStack(spacing: 2) {
-                                Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow)
-                                Text(String(format: "%.1f", farm.rating))
-                                    .font(.caption.weight(.semibold))
-                                Text("(\(farm.reviews))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text("Example")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.secondary.opacity(0.15))
+                                .foregroundStyle(.secondary)
+                                .clipShape(Capsule())
                         }
                         if !isExpanded {
                             Text(farm.description)
