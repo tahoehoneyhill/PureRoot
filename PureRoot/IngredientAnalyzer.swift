@@ -153,7 +153,7 @@ struct IngredientAnalysis {
     var hasContaminantExposures: Bool { !contaminantExposures.isEmpty }
 
     /// A plain-language, at-a-glance safety call for shoppers deciding in the store.
-    enum Verdict {
+    enum Verdict: Equatable {
         case clean, caution, avoid
 
         var title: String {
