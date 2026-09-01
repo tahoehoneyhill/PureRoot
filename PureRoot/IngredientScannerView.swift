@@ -41,6 +41,9 @@ struct IngredientScannerView: View {
                     if let analysis {
                         verdictBadge(analysis)
                         shopperScorecard(analysis)
+                        if analysis.isUltraProcessed {
+                            ultraProcessedBanner(analysis)
+                        }
                         if analysis.hasCarcinogens {
                             carcinogenBanner(analysis)
                         }
@@ -289,6 +292,51 @@ struct IngredientScannerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16).stroke(Color.prDivider, lineWidth: 0.5)
+        )
+    }
+
+    private func ultraProcessedBanner(_ analysis: IngredientAnalysis) -> some View {
+        let fromNova = analysis.novaGroup == 4
+        let markers = analysis.ultraProcessedMarkers
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "flask.fill")
+                    .foregroundStyle(.orange)
+                Text("Ultra-processed food")
+                    .font(.headline)
+                    .foregroundStyle(.orange)
+                if fromNova {
+                    Text("NOVA 4")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.18))
+                        .foregroundStyle(.orange)
+                        .clipShape(Capsule())
+                }
+            }
+            Text(fromNova
+                 ? "Classified NOVA group 4 (ultra-processed) in the Open Food Facts database. These foods are formulated from industrial ingredients and are best eaten only occasionally."
+                 : "This ingredient list shows the industrial markers of an ultra-processed food — best eaten only occasionally.")
+                .font(.footnote)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            if !markers.isEmpty {
+                Text("Markers: \(markers.prefix(6).joined(separator: ", "))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Link(destination: Citations.novaURL) {
+                Label("Source: NOVA — Open Food Facts", systemImage: "link")
+                    .font(.caption2.weight(.semibold))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.orange.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.4), lineWidth: 1)
         )
     }
 
@@ -714,7 +762,7 @@ struct IngredientScannerView: View {
     }
 
     private func analyze() {
-        withAnimation { analysis = IngredientAnalyzer.analyze(inputText) }
+        withAnimation { analysis = IngredientAnalyzer.analyze(inputText, novaGroup: scannedProduct?.nova_group) }
         expandedID = nil
     }
 

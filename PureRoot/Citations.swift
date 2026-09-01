@@ -49,10 +49,15 @@ enum Citations {
                name: "NIH PubChem",
                detail: "Chemical properties and toxicity data",
                url: URL(string: "https://pubchem.ncbi.nlm.nih.gov")!),
+        Source(id: "nova",
+               name: "NOVA — Open Food Facts",
+               detail: "Ultra-processed food (NOVA group) classification",
+               url: URL(string: "https://world.openfoodfacts.org/nova")!),
     ]
 
     static let iarcURL = all.first { $0.id == "iarc" }!.url
     static let usdaPDPURL = all.first { $0.id == "usda-pdp" }!.url
+    static let novaURL = all.first { $0.id == "nova" }!.url
 
     static let disclaimer = "PureRootFood provides educational information from the public sources above, not medical advice. Consult a healthcare professional for personal health decisions."
 

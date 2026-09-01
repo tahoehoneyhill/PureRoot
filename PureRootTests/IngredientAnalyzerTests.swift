@@ -201,4 +201,44 @@ struct IngredientAnalyzerTests {
         #expect(checks[0].status == .no) // Is it safe to eat?
         #expect(checks[2].status == .no) // Limits dangerous chemicals?
     }
+
+    // MARK: - Ultra-processed (NOVA 4) detection
+
+    @Test("NOVA group 4 marks a product ultra-processed")
+    func novaFourIsUltraProcessed() {
+        let analysis = IngredientAnalyzer.analyze("tomatoes, water, salt", novaGroup: 4)
+        #expect(analysis.isUltraProcessed)
+    }
+
+    @Test("A single strong industrial marker flags ultra-processing from text")
+    func strongMarkerFlagsUPF() {
+        let analysis = IngredientAnalyzer.analyze("water, maltodextrin, salt")
+        #expect(analysis.isUltraProcessed)
+    }
+
+    @Test("A whole-food ingredient list is not ultra-processed")
+    func wholeFoodNotUPF() {
+        let analysis = IngredientAnalyzer.analyze("organic rolled oats, water, cinnamon")
+        #expect(!analysis.isUltraProcessed)
+    }
+
+    @Test("One moderate marker alone does not flag ultra-processing")
+    func singleModerateMarkerNotUPF() {
+        let analysis = IngredientAnalyzer.analyze("chickpeas, water, sea salt, citric acid")
+        #expect(!analysis.isUltraProcessed)
+    }
+
+    @Test("Ultra-processing lowers the score and the good-for-you check")
+    func upfLowersScoreAndCheck() {
+        let plain = IngredientAnalyzer.analyze("water, salt")
+        let upf = IngredientAnalyzer.analyze("water, salt", novaGroup: 4)
+        #expect(upf.score < plain.score)
+        #expect(upf.shopperChecks[1].status != .yes) // Is it good for you?
+    }
+
+    @Test("Ultra-processed products never read as a clean verdict")
+    func upfIsAtLeastCaution() {
+        let analysis = IngredientAnalyzer.analyze("water, salt", novaGroup: 4)
+        #expect(analysis.verdict != .clean)
+    }
 }

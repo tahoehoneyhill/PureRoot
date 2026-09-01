@@ -197,6 +197,13 @@ struct IngredientAnalysis {
     let grade: String
     let ingredients: [AnalyzedIngredient]
     let contaminantExposures: [ContaminantExposure]
+    /// Open Food Facts NOVA group (1–4) when a scanned product provides it.
+    let novaGroup: Int?
+    /// Ingredient-text tokens that signal industrial ultra-processing.
+    let ultraProcessedMarkers: [String]
+    /// True when the product is ultra-processed — either NOVA 4 from the
+    /// database, or enough ultra-processing markers in the ingredient list.
+    let isUltraProcessed: Bool
 
     var avoidCount: Int { ingredients.filter { $0.risk == .avoid }.count }
     var cautionCount: Int { ingredients.filter { $0.risk == .caution }.count }
@@ -244,7 +251,7 @@ struct IngredientAnalysis {
 
     var verdict: Verdict {
         if grade == "D" || grade == "F" || avoidCount > 0 { return .avoid }
-        if grade == "C" || cautionCount > 0 || hasCarcinogens || hasContaminantExposures { return .caution }
+        if grade == "C" || cautionCount > 0 || hasCarcinogens || hasContaminantExposures || isUltraProcessed { return .caution }
         return .clean
     }
 
@@ -255,6 +262,7 @@ struct IngredientAnalysis {
             return "No flagged additives or contaminants detected."
         case .caution:
             var parts: [String] = []
+            if isUltraProcessed { parts.append("ultra-processed") }
             if cautionCount > 0 { parts.append("\(cautionCount) ingredient\(cautionCount == 1 ? "" : "s") to watch") }
             if hasCarcinogens { parts.append("possible carcinogen") }
             if hasContaminantExposures { parts.append("likely contaminant exposure") }
@@ -300,19 +308,27 @@ struct IngredientAnalysis {
             safeDetail = "No flagged additives or contaminants detected."
         }
 
-        // 2. Is it good for you? (whole-food quality, from the overall grade)
+        // 2. Is it good for you? (whole-food quality; ultra-processing overrides
+        // an otherwise clean grade, since NOVA 4 foods are best eaten sparingly)
         let good: ShopperCheck.Status
         let goodDetail: String
-        switch grade {
-        case "A", "B":
-            good = .yes
-            goodDetail = "Mostly clean, minimally processed ingredients."
-        case "C":
-            good = .partial
-            goodDetail = "A mix of wholesome and processed ingredients."
-        default:
-            good = .no
-            goodDetail = "Highly processed with several poor ingredients."
+        if isUltraProcessed {
+            good = (grade == "A" || grade == "B") ? .partial : .no
+            goodDetail = novaGroup == 4
+                ? "Ultra-processed (NOVA 4) — best eaten only occasionally."
+                : "Shows multiple ultra-processing markers — best eaten only occasionally."
+        } else {
+            switch grade {
+            case "A", "B":
+                good = .yes
+                goodDetail = "Mostly clean, minimally processed ingredients."
+            case "C":
+                good = .partial
+                goodDetail = "A mix of wholesome and processed ingredients."
+            default:
+                good = .no
+                goodDetail = "Highly processed with several poor ingredients."
+            }
         }
 
         // 3. Does it limit dangerous chemicals? (additives + carcinogens)
@@ -358,6 +374,36 @@ struct IngredientAnalysis {
 
 enum IngredientAnalyzer {
     static let exampleLabel = "Sugar, enriched wheat flour, high fructose corn syrup, partially hydrogenated soybean oil, salt, baking soda, sodium aluminum phosphate, soy lecithin, mono and diglycerides, natural and artificial flavors, red 40, yellow 5, BHT, citric acid"
+
+    // MARK: Ultra-processing (NOVA 4) markers
+    // Industrial ingredients and cosmetic additives that are essentially never
+    // used in home cooking. Their presence is the hallmark of an ultra-processed
+    // food. A single "strong" marker classifies a product as ultra-processed;
+    // "moderate" markers (borderline / also used in simple foods) require two.
+
+    private static let upfStrongMarkers: [String] = [
+        "high fructose corn syrup", "hfcs", "corn syrup", "corn syrup solids",
+        "glucose syrup", "glucose-fructose", "fructose syrup", "invert sugar", "invert syrup",
+        "maltodextrin", "modified food starch", "modified corn starch", "modified starch",
+        "partially hydrogenated", "hydrogenated", "interesterified",
+        "protein isolate", "protein concentrate", "protein hydrolysate",
+        "soy protein isolate", "whey protein isolate", "hydrolyzed protein", "hydrolyzed",
+        "artificial flavor", "artificial flavour", "artificial color", "artificial colour", "artificial sweetener",
+        "dextrose", "high-maltose",
+        "aspartame", "sucralose", "acesulfame", "saccharin", "neotame",
+        "red 40", "yellow 5", "yellow 6", "blue 1", "blue 2", "red 3", "green 3", "titanium dioxide",
+        "polysorbate", "carrageenan", "cellulose gum", "carboxymethylcellulose", "carboxymethyl cellulose",
+        "mono and diglycerides", "monoglycerides", "diglycerides", "monosodium glutamate", "msg",
+        "autolyzed yeast", "hydrolyzed vegetable protein",
+        "bha", "bht", "tbhq", "sodium nitrite", "sodium benzoate", "potassium sorbate", "calcium propionate",
+        "caramel color", "maltitol", "sorbitol", "xylitol", "erythritol", "polydextrose",
+    ]
+
+    private static let upfModerateMarkers: [String] = [
+        "soy lecithin", "lecithin", "natural flavor", "natural flavour", "natural flavors",
+        "xanthan gum", "guar gum", "citric acid", "soy protein", "whey", "dextrin",
+        "emulsifier", "stabilizer", "thickener", "anti-caking",
+    ]
 
     private struct ContaminantRule {
         let triggerPatterns: [String]
@@ -806,7 +852,7 @@ enum IngredientAnalyzer {
                         alternative: "—"),
     ]
 
-    static func analyze(_ text: String) -> IngredientAnalysis {
+    static func analyze(_ text: String, novaGroup: Int? = nil) -> IngredientAnalysis {
         let separators = CharacterSet(charactersIn: ",;()[]")
         let raws = text
             .components(separatedBy: separators)
@@ -825,6 +871,21 @@ enum IngredientAnalyzer {
 
         let exposures = inferContaminantExposures(from: lowered)
 
+        // Ultra-processing detection: NOVA 4 from the database is authoritative;
+        // otherwise fall back to counting ultra-processing markers in the text.
+        var strongHits: [String] = []
+        var moderateHits: [String] = []
+        for (raw, low) in lowered {
+            if upfStrongMarkers.contains(where: { matches(low, term: $0) }) {
+                strongHits.append(raw)
+            } else if upfModerateMarkers.contains(where: { matches(low, term: $0) }) {
+                moderateHits.append(raw)
+            }
+        }
+        let textUltraProcessed = !strongHits.isEmpty || moderateHits.count >= 2
+        let isUltraProcessed = novaGroup == 4 || textUltraProcessed
+        let ultraProcessedMarkers = strongHits + moderateHits
+
         // Score starts at a clean 100 and everything we detect pulls it down:
         // the additive's own risk, an extra hit for any cancer link, a small
         // penalty for unidentified ingredients, and the weighted total of every
@@ -840,6 +901,9 @@ enum IngredientAnalyzer {
         }
         let exposurePenalty = exposures.reduce(0) { $0 + $1.penalty }
         score -= min(exposurePenalty, 30)
+        // Ultra-processed foods take an extra hit for the processing itself,
+        // beyond any harm from the individual additives already counted above.
+        if isUltraProcessed { score -= (novaGroup == 4 ? 8 : 6) }
         score = max(0, min(100, score))
 
         let grade: String
@@ -851,7 +915,10 @@ enum IngredientAnalyzer {
         default: grade = "F"
         }
 
-        return IngredientAnalysis(score: score, grade: grade, ingredients: ingredients, contaminantExposures: exposures)
+        return IngredientAnalysis(score: score, grade: grade, ingredients: ingredients,
+                                  contaminantExposures: exposures, novaGroup: novaGroup,
+                                  ultraProcessedMarkers: ultraProcessedMarkers,
+                                  isUltraProcessed: isUltraProcessed)
     }
 
     /// Whole-word(s) containment: true only when `term` appears in `text`
