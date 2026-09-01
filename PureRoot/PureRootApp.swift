@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct PureRootApp: App {
+    @State private var directory = DirectoryStore()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(directory)
+                .task { await directory.refresh() }
         }
     }
 }

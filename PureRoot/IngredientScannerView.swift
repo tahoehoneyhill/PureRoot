@@ -40,6 +40,7 @@ struct IngredientScannerView: View {
                     }
                     if let analysis {
                         verdictBadge(analysis)
+                        shopperScorecard(analysis)
                         if analysis.hasCarcinogens {
                             carcinogenBanner(analysis)
                         }
@@ -248,6 +249,47 @@ struct IngredientScannerView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(verdict.color)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func shopperScorecard(_ analysis: IngredientAnalysis) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("At a glance")
+                .font(.headline)
+                .padding([.horizontal, .top])
+                .padding(.bottom, 4)
+
+            ForEach(Array(analysis.shopperChecks.enumerated()), id: \.element.id) { index, check in
+                if index > 0 {
+                    Divider().padding(.leading, 44)
+                }
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: check.status.systemImage)
+                        .font(.title3)
+                        .foregroundStyle(check.status.color)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(check.question)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(check.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Text(check.status.word)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(check.status.color)
+                }
+                .padding()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.prCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16).stroke(Color.prDivider, lineWidth: 0.5)
+        )
     }
 
     private func carcinogenBanner(_ analysis: IngredientAnalysis) -> some View {

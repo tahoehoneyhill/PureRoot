@@ -78,6 +78,18 @@ enum CarcinogenClass: String {
         case .known: return .red
         }
     }
+
+    /// Extra points subtracted from the health score, on top of the base risk,
+    /// so a cancer link always pulls the score down in proportion to its
+    /// certainty.
+    var scorePenalty: Int {
+        switch self {
+        case .none: return 0
+        case .possible: return 2
+        case .probable: return 4
+        case .known: return 6
+        }
+    }
 }
 
 struct ContaminantExposure: Identifiable {
@@ -87,6 +99,55 @@ struct ContaminantExposure: Identifiable {
     let detail: String
     let risk: IngredientRisk
     let carcinogen: CarcinogenClass
+
+    /// How much this inferred exposure pulls the health score down, combining
+    /// how bad the exposure is with how strong its cancer link is.
+    var penalty: Int {
+        let riskWeight: Int
+        switch risk {
+        case .avoid: riskWeight = 8
+        case .caution: riskWeight = 4
+        case .moderate: riskWeight = 2
+        case .safe, .clean: riskWeight = 0
+        }
+        return riskWeight + carcinogen.scorePenalty
+    }
+}
+
+/// One plain-language yes/no answer for a shopper deciding in the aisle.
+struct ShopperCheck: Identifiable {
+    enum Status {
+        case yes, partial, no
+
+        var systemImage: String {
+            switch self {
+            case .yes: return "checkmark.circle.fill"
+            case .partial: return "minus.circle.fill"
+            case .no: return "xmark.circle.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .yes: return .green
+            case .partial: return .orange
+            case .no: return .red
+            }
+        }
+
+        var word: String {
+            switch self {
+            case .yes: return "Yes"
+            case .partial: return "Mostly"
+            case .no: return "No"
+            }
+        }
+    }
+
+    let id = UUID()
+    let question: String
+    let status: Status
+    let detail: String
 }
 
 struct IngredientEntry {
@@ -215,6 +276,84 @@ struct IngredientAnalysis {
         default: return .red
         }
     }
+
+    /// True when the label explicitly declares certified-organic ingredients.
+    var hasOrganic: Bool {
+        ingredients.contains { $0.entry?.canonicalName == "Organic" }
+    }
+
+    /// The four questions the average shopper actually asks when scanning a
+    /// product: Is it safe? Is it good for me? Does it limit dangerous
+    /// chemicals? Is it organic / pure? Answered green/amber/red at a glance.
+    var shopperChecks: [ShopperCheck] {
+        // 1. Is it safe to eat?
+        let safe: ShopperCheck.Status
+        let safeDetail: String
+        if avoidCount > 0 || hasCarcinogens {
+            safe = .no
+            safeDetail = "Contains ingredients or contaminants best avoided."
+        } else if cautionCount > 0 || hasContaminantExposures {
+            safe = .partial
+            safeDetail = "Generally okay, but a few things to watch."
+        } else {
+            safe = .yes
+            safeDetail = "No flagged additives or contaminants detected."
+        }
+
+        // 2. Is it good for you? (whole-food quality, from the overall grade)
+        let good: ShopperCheck.Status
+        let goodDetail: String
+        switch grade {
+        case "A", "B":
+            good = .yes
+            goodDetail = "Mostly clean, minimally processed ingredients."
+        case "C":
+            good = .partial
+            goodDetail = "A mix of wholesome and processed ingredients."
+        default:
+            good = .no
+            goodDetail = "Highly processed with several poor ingredients."
+        }
+
+        // 3. Does it limit dangerous chemicals? (additives + carcinogens)
+        let clean: ShopperCheck.Status
+        let cleanDetail: String
+        if hasCarcinogens || avoidCount > 0 {
+            clean = .no
+            cleanDetail = hasCarcinogens
+                ? "Contains a chemical linked to cancer."
+                : "Contains additives on the avoid list."
+        } else if cautionCount > 0 {
+            clean = .partial
+            cleanDetail = "A few questionable additives, none of the worst."
+        } else {
+            clean = .yes
+            cleanDetail = "Free of the additives and chemicals we flag."
+        }
+
+        // 4. Is it organic / pure food? (residue-free + organic sourcing)
+        let pure: ShopperCheck.Status
+        let pureDetail: String
+        if hasContaminantExposures {
+            pure = hasOrganic ? .partial : .no
+            pureDetail = hasOrganic
+                ? "Some organic ingredients, but residue risks remain."
+                : "Conventional ingredients with likely pesticide, heavy-metal, or PFAS exposure."
+        } else if hasOrganic {
+            pure = .yes
+            pureDetail = "Includes certified-organic ingredients."
+        } else {
+            pure = .partial
+            pureDetail = "Conventional, but no specific residue flags found."
+        }
+
+        return [
+            ShopperCheck(question: "Is it safe to eat?", status: safe, detail: safeDetail),
+            ShopperCheck(question: "Is it good for you?", status: good, detail: goodDetail),
+            ShopperCheck(question: "Limits dangerous chemicals?", status: clean, detail: cleanDetail),
+            ShopperCheck(question: "Organic / pure food?", status: pure, detail: pureDetail),
+        ]
+    }
 }
 
 enum IngredientAnalyzer {
@@ -295,12 +434,54 @@ enum IngredientAnalyzer {
             carcinogen: .probable
         ),
         ContaminantRule(
-            triggerPatterns: ["grease-resistant", "grease resistant", "wax-coated", "wax coated"],
+            triggerPatterns: ["grease-resistant", "grease resistant", "wax-coated", "wax coated", "pizza box", "bakery bag", "bakery liner", "coated paper", "microwavable", "microwaveable"],
             organicExempt: false,
             title: "PFAS-coated packaging possible",
-            detail: "Grease-resistant wrappers, fast-food containers, and bakery liners frequently contain PFAS coatings that migrate into food.",
+            detail: "Grease-resistant wrappers, pizza boxes, bakery liners, and microwave-ready coated papers frequently contain PFAS coatings that migrate into food during storage and heating.",
             risk: .avoid,
             carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["fast food", "fast-food", "take-out", "takeout", "to-go container", "sandwich wrapper", "burger wrapper", "fry box", "clamshell container"],
+            organicExempt: false,
+            title: "PFAS exposure likely (fast-food packaging)",
+            detail: "Fast-food wrappers, sandwich and burger papers, fry boxes, and clamshell containers are frequently treated with PFAS forever chemicals for grease resistance. FDA testing has repeatedly detected PFAS migration into food from these materials.",
+            risk: .avoid,
+            carcinogen: .probable
+        ),
+        ContaminantRule(
+            triggerPatterns: ["molded fiber", "moulded fiber", "compostable bowl", "compostable container", "fiber bowl", "bagasse"],
+            organicExempt: false,
+            title: "PFAS exposure possible (compostable fiber packaging)",
+            detail: "Molded-fiber \"compostable\" bowls and takeout containers were long treated with PFAS for grease and moisture resistance. Independent testing has found high fluorine levels in many of these products.",
+            risk: .caution,
+            carcinogen: .probable
+        ),
+
+        // MARK: PFAS "forever chemicals" absorbed into the food itself (not on the label)
+        ContaminantRule(
+            triggerPatterns: ["fish", "seafood", "shellfish", "shrimp", "crab", "salmon", "cod", "tilapia"],
+            organicExempt: false,
+            title: "PFAS accumulation possible (seafood)",
+            detail: "PFAS forever chemicals bioaccumulate in fish and shellfish from contaminated water. Freshwater fish in particular carry some of the highest PFAS levels measured in any food; the EPA and FDA monitor PFAS in seafood. PFOS, a common PFAS in fish, is an IARC Group 2B possible human carcinogen.",
+            risk: .caution,
+            carcinogen: .possible
+        ),
+        ContaminantRule(
+            triggerPatterns: ["spring water", "bottled water", "sparkling water", "mineral water"],
+            organicExempt: false,
+            title: "PFAS possible (bottled water)",
+            detail: "PFAS are widespread drinking-water contaminants. Independent testing has detected PFAS in a number of bottled and spring waters, and the EPA has set enforceable limits for PFAS in drinking water.",
+            risk: .caution,
+            carcinogen: .possible
+        ),
+        ContaminantRule(
+            triggerPatterns: ["leafy greens", "spinach", "kale", "lettuce", "collard greens", "swiss chard"],
+            organicExempt: false,
+            title: "PFAS uptake possible (leafy greens)",
+            detail: "Leafy greens take up PFAS from soil and irrigation water — especially near contaminated sites or where sewage-sludge \"biosolids\" were applied as fertilizer. Leafy vegetables show higher PFAS uptake than most other produce.",
+            risk: .caution,
+            carcinogen: .possible
         ),
 
         // MARK: Heavy metals (absorbed from soil/water — not reduced by organic certification)
@@ -644,15 +825,21 @@ enum IngredientAnalyzer {
 
         let exposures = inferContaminantExposures(from: lowered)
 
+        // Score starts at a clean 100 and everything we detect pulls it down:
+        // the additive's own risk, an extra hit for any cancer link, a small
+        // penalty for unidentified ingredients, and the weighted total of every
+        // inferred pesticide, heavy-metal, or PFAS exposure.
         var score = 100
         for ing in ingredients {
             if let entry = ing.entry {
                 score += entry.risk.scoreDelta
+                score -= entry.carcinogen.scorePenalty
             } else {
                 score -= 1
             }
         }
-        score -= min(exposures.count * 2, 8)
+        let exposurePenalty = exposures.reduce(0) { $0 + $1.penalty }
+        score -= min(exposurePenalty, 30)
         score = max(0, min(100, score))
 
         let grade: String

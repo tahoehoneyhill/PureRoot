@@ -113,4 +113,92 @@ struct IngredientAnalyzerTests {
             }
         }
     }
+
+    // MARK: - PFAS / forever-chemical inference
+
+    @Test("PFAS-lined packaging triggers a PFAS exposure")
+    func microwavePopcornTriggersPFAS() {
+        let analysis = IngredientAnalyzer.analyze("microwave popcorn")
+        #expect(analysis.contaminantExposures.contains { $0.title.lowercased().contains("pfas") })
+    }
+
+    @Test("Seafood, bottled water, and leafy greens each infer PFAS")
+    func foodCategoriesTriggerPFAS() {
+        for label in ["salmon", "spring water", "spinach"] {
+            let analysis = IngredientAnalyzer.analyze(label)
+            #expect(
+                analysis.contaminantExposures.contains { $0.title.lowercased().contains("pfas") },
+                "Expected a PFAS exposure for \(label)"
+            )
+        }
+    }
+
+    @Test("Every PFAS exposure resolves to the ATSDR citation")
+    func pfasExposuresCiteATSDR() {
+        let analysis = IngredientAnalyzer.analyze("salmon, spring water, spinach, microwave popcorn")
+        let pfas = analysis.contaminantExposures.filter { $0.title.lowercased().contains("pfas") }
+        #expect(!pfas.isEmpty)
+        for exposure in pfas {
+            let citation = Citations.source(forExposureTitle: exposure.title)
+            #expect(citation.label.contains("ATSDR"))
+        }
+    }
+
+    // MARK: - Weighted scoring (takes everything into account)
+
+    @Test("Carcinogen certainty is ordered by score penalty")
+    func carcinogenPenaltyOrdering() {
+        #expect(CarcinogenClass.none.scorePenalty == 0)
+        #expect(CarcinogenClass.possible.scorePenalty < CarcinogenClass.probable.scorePenalty)
+        #expect(CarcinogenClass.probable.scorePenalty < CarcinogenClass.known.scorePenalty)
+    }
+
+    @Test("A known-carcinogen exposure penalizes more than a benign one")
+    func exposurePenaltyReflectsCarcinogen() {
+        let known = ContaminantExposure(title: "x", triggeredBy: "y", detail: "z",
+                                        risk: .caution, carcinogen: .known)
+        let benign = ContaminantExposure(title: "x", triggeredBy: "y", detail: "z",
+                                         risk: .caution, carcinogen: .none)
+        #expect(known.penalty > benign.penalty)
+    }
+
+    @Test("Contaminant exposures actually pull the score down")
+    func exposuresLowerScore() {
+        // Rice carries a known-carcinogen (arsenic) inference, so it must not
+        // score as a perfect 100 the way an inert unknown would.
+        let rice = IngredientAnalyzer.analyze("white rice")
+        #expect(rice.score < 95)
+    }
+
+    @Test("More contaminants means a strictly lower score")
+    func moreContaminantsScoreLower() {
+        let one = IngredientAnalyzer.analyze("white rice")
+        let many = IngredientAnalyzer.analyze("white rice, tuna, wheat flour, cocoa")
+        #expect(many.score < one.score)
+    }
+
+    // MARK: - Shopper scorecard
+
+    @Test("Scorecard always answers the four shopper questions")
+    func scorecardHasFourChecks() {
+        let analysis = IngredientAnalyzer.analyze("water, sea salt")
+        #expect(analysis.shopperChecks.count == 4)
+    }
+
+    @Test("A clean organic product passes the safety and chemical checks")
+    func cleanProductPassesChecks() {
+        let analysis = IngredientAnalyzer.analyze("organic olive oil, raw honey")
+        let checks = analysis.shopperChecks
+        #expect(checks[0].status == .yes) // Is it safe to eat?
+        #expect(checks[2].status == .yes) // Limits dangerous chemicals?
+        #expect(analysis.hasOrganic)
+    }
+
+    @Test("A carcinogen product fails the safety and chemical checks")
+    func harmfulProductFailsChecks() {
+        let analysis = IngredientAnalyzer.analyze("sugar, red 40, BHT, sodium nitrite")
+        let checks = analysis.shopperChecks
+        #expect(checks[0].status == .no) // Is it safe to eat?
+        #expect(checks[2].status == .no) // Limits dangerous chemicals?
+    }
 }

@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Observation
 import SwiftUI
 
 enum ShipperCategory: String, CaseIterable, Identifiable {
@@ -134,6 +135,7 @@ enum ShipperData {
 }
 
 struct NationwideShippersView: View {
+    @Environment(DirectoryStore.self) private var directory
     @State private var selectedCategory: ShipperCategory
     @State private var bookmarks: Set<String> = Self.loadBookmarks()
     @State private var expandedID: String?
@@ -213,7 +215,7 @@ struct NationwideShippersView: View {
     }
 
     private var filtered: [Shipper] {
-        ShipperData.all.filter { s in
+        directory.shippers.filter { s in
             let categoryMatch = selectedCategory == .all || s.category == selectedCategory
             let bookmarkMatch = !showBookmarksOnly || bookmarks.contains(s.id)
             return categoryMatch && bookmarkMatch
@@ -353,5 +355,113 @@ struct FlexibleChipLayout: View {
                     .clipShape(Capsule())
             }
         }
+    }
+}
+
+// MARK: - Auto-updating directory
+
+/// Codable mirror of the hosted directory feed. Every field is optional so a
+/// partial or evolving feed never fails to decode; missing sections simply fall
+/// back to the values already loaded.
+private struct DirectoryFeed: Codable {
+    let shippers: [ShipperDTO]?
+    let farms: [FarmDTO]?
+}
+
+private struct ShipperDTO: Codable {
+    let id: String
+    let name: String
+    let category: String
+    let highlight: String
+    let why: String
+    let howItWorks: String
+    let products: [String]
+    let certifications: [String]
+    let tags: [String]
+    let url: String
+
+    var model: Shipper {
+        Shipper(id: id, name: name,
+                category: ShipperCategory(rawValue: category) ?? .grocery,
+                highlight: highlight, why: why, howItWorks: howItWorks,
+                products: products, certifications: certifications,
+                tags: tags, url: url)
+    }
+}
+
+private struct FarmDTO: Codable {
+    let id: String
+    let name: String
+    let state: String
+    let products: [String]
+    let certifications: [String]
+    let emoji: String
+    let description: String
+
+    var model: Farm {
+        Farm(id: id, name: name, state: state, products: products,
+             certifications: certifications, emoji: emoji, description: description)
+    }
+}
+
+/// Single source of truth for the farm and shipper directories. Ships with the
+/// hand-vetted defaults baked in, loads the last-fetched copy from disk on
+/// launch, then refreshes from the hosted feed so listings can be kept current
+/// without shipping a new app build. If the network or feed is unavailable, the
+/// most recent good data (cache, then bundled defaults) is used.
+@Observable
+final class DirectoryStore {
+    private(set) var shippers: [Shipper]
+    private(set) var farms: [Farm]
+    private(set) var lastUpdated: Date?
+
+    /// Hosted on the app's existing GitHub Pages site. Edit this JSON file to
+    /// update what every user sees — no App Store release required.
+    static let feedURL = URL(string: "https://tahoehoneyhill.github.io/purerootfood/directory.json")!
+
+    init() {
+        let cached = Self.loadCache()
+        shippers = cached?.shippers?.map(\.model) ?? ShipperData.all
+        farms = cached?.farms?.map(\.model) ?? FarmData.featured
+    }
+
+    /// Fetches the latest directory. Safe to call on every launch; failures are
+    /// silent and leave the existing listings untouched.
+    @MainActor
+    func refresh() async {
+        do {
+            var request = URLRequest(url: Self.feedURL)
+            request.setValue("PureRootFood/1.0 (iOS app)", forHTTPHeaderField: "User-Agent")
+            request.timeoutInterval = 20
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else { return }
+
+            let feed = try JSONDecoder().decode(DirectoryFeed.self, from: data)
+            if let s = feed.shippers, !s.isEmpty { shippers = s.map(\.model) }
+            if let f = feed.farms, !f.isEmpty { farms = f.map(\.model) }
+            lastUpdated = Date()
+            Self.saveCache(data)
+        } catch {
+            // Keep whatever we already have (cache or bundled defaults).
+        }
+    }
+
+    // MARK: Disk cache
+
+    private static var cacheURL: URL {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return dir.appendingPathComponent("pureroot-directory.json")
+    }
+
+    private static func loadCache() -> DirectoryFeed? {
+        guard let data = try? Data(contentsOf: cacheURL) else { return nil }
+        return try? JSONDecoder().decode(DirectoryFeed.self, from: data)
+    }
+
+    private static func saveCache(_ data: Data) {
+        try? data.write(to: cacheURL, options: .atomic)
     }
 }

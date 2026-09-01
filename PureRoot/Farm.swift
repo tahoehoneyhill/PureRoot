@@ -68,10 +68,15 @@ enum FarmData {
 
 struct FarmDirectoryView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(DirectoryStore.self) private var directory
     @State private var selectedState: String = "All"
     @State private var expandedID: String?
     @State private var zipCode: String = ""
     @State private var radius: Int = 50
+
+    private var allStates: [String] {
+        ["All"] + Array(Set(directory.farms.map { $0.state })).sorted()
+    }
 
     var body: some View {
         NavigationStack {
@@ -187,7 +192,7 @@ struct FarmDirectoryView: View {
     private var stateFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(FarmData.allStates, id: \.self) { state in
+                ForEach(allStates, id: \.self) { state in
                     Button {
                         selectedState = state
                     } label: {
@@ -207,7 +212,7 @@ struct FarmDirectoryView: View {
     }
 
     private var filtered: [Farm] {
-        FarmData.featured.filter { selectedState == "All" || $0.state == selectedState }
+        directory.farms.filter { selectedState == "All" || $0.state == selectedState }
     }
 
     private func farmCard(_ farm: Farm) -> some View {

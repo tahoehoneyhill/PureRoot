@@ -1,0 +1,222 @@
+{
+  "shippers": [
+    {
+      "id": "thrive",
+      "name": "Thrive Market",
+      "category": "Grocery & Pantry",
+      "highlight": "Largest vetted organic online store, no artificial anything",
+      "why": "Every product is screened against a long banned-ingredients list. Membership model means lower prices on the same clean brands you'd buy retail.",
+      "howItWorks": "Annual membership unlocks 30–40% savings on thousands of organic and non-GMO grocery items. Ships nationwide in 2–5 days.",
+      "products": ["Pantry staples", "Snacks", "Supplements", "Clean beauty", "Wine"],
+      "certifications": ["Non-GMO", "Organic", "Banned-list screened"],
+      "tags": ["membership", "no artificial"],
+      "url": "https://thrivemarket.com"
+    },
+    {
+      "id": "butcherbox",
+      "name": "ButcherBox",
+      "category": "Meat & Seafood",
+      "highlight": "100% grass-fed, humanely raised, no factory farms",
+      "why": "All beef is grass-fed and grass-finished, pork is heritage-breed, chicken is organic and free-range. No antibiotics or added hormones, ever.",
+      "howItWorks": "Monthly curated or custom box of meat and seafood, frozen and shipped nationwide. Skip or cancel anytime.",
+      "products": ["Beef", "Chicken", "Pork", "Wild seafood"],
+      "certifications": ["Grass-fed", "Humane Certified", "No antibiotics"],
+      "tags": ["grass-fed", "no antibiotics"],
+      "url": "https://butcherbox.com"
+    },
+    {
+      "id": "misfits",
+      "name": "Misfits Market",
+      "category": "Produce",
+      "highlight": "Organic produce boxes, 40% below grocery prices",
+      "why": "Rescues cosmetically imperfect organic produce that would otherwise be wasted. Same nutrition, lower price.",
+      "howItWorks": "Customize a weekly box of organic produce and grocery. Skip any week. Ships to most of the US.",
+      "products": ["Organic produce", "Grocery", "Meat", "Dairy"],
+      "certifications": ["USDA Organic", "Non-GMO"],
+      "tags": ["organic", "produce box"],
+      "url": "https://misfitsmarket.com"
+    },
+    {
+      "id": "farmbox",
+      "name": "FarmBox Direct",
+      "category": "Produce",
+      "highlight": "Partners with actual small farms, includes farm notes",
+      "why": "Sources from real small and mid-size organic farms across the US. Each box includes a note about which farms grew what.",
+      "howItWorks": "Weekly or bi-weekly box, choose all-fruit, all-veggie, or mixed. Sizes for one person up to a family.",
+      "products": ["Organic fruits", "Organic vegetables"],
+      "certifications": ["USDA Organic", "Non-GMO"],
+      "tags": ["small farms", "organic"],
+      "url": "https://farmboxdirect.com"
+    },
+    {
+      "id": "vital",
+      "name": "Vital Choice",
+      "category": "Meat & Seafood",
+      "highlight": "Wild-caught seafood, tested for mercury & contaminants",
+      "why": "The gold standard for wild Alaskan salmon and seafood. Every batch is third-party tested for purity.",
+      "howItWorks": "One-time orders or subscriptions. Frozen at peak freshness, shipped overnight.",
+      "products": ["Wild salmon", "Halibut", "Cod", "Shellfish", "Pasture-raised meat"],
+      "certifications": ["Wild-caught", "MSC Sustainable", "Third-party tested"],
+      "tags": ["wild-caught", "mercury-tested"],
+      "url": "https://vitalchoice.com"
+    },
+    {
+      "id": "goodchop",
+      "name": "Good Chop",
+      "category": "Meat & Seafood",
+      "highlight": "100% American sourced, no imports, no factory farms",
+      "why": "Every cut comes from independent American farmers and ranchers. No imported meat, no factory farms.",
+      "howItWorks": "Customize a monthly box of meat and seafood. Includes butcher cards from real farms.",
+      "products": ["Beef", "Pork", "Chicken", "Seafood"],
+      "certifications": ["American sourced", "No antibiotics"],
+      "tags": ["American farms", "no factory farms"],
+      "url": "https://goodchop.com"
+    },
+    {
+      "id": "sunbasket",
+      "name": "Sun Basket",
+      "category": "Meal Kits",
+      "highlight": "USDA organic meal kits, zero artificial ingredients",
+      "why": "Only meal-kit company with consistent USDA Organic certification. Designed by a chef and a nutritionist.",
+      "howItWorks": "Choose recipes weekly. Pre-portioned organic ingredients shipped chilled, ready to cook in 20–35 minutes.",
+      "products": ["Meal kits", "Prepared meals", "Breakfast", "Snacks"],
+      "certifications": ["USDA Organic", "Non-GMO"],
+      "tags": ["organic", "chef-designed"],
+      "url": "https://sunbasket.com"
+    },
+    {
+      "id": "azure",
+      "name": "Azure Standard",
+      "category": "Bulk Organic",
+      "highlight": "Best value bulk organic, community drop-point network",
+      "why": "Family-owned, certified organic since 1971. Massive selection of bulk organic grains, flours, beans, and pantry items at wholesale prices.",
+      "howItWorks": "Order monthly, pick up at a local Azure drop point or get home delivery in select areas. Save 20–50% buying in bulk.",
+      "products": ["Bulk grains", "Flours", "Beans", "Oils", "Supplements", "Pantry"],
+      "certifications": ["USDA Organic", "Non-GMO"],
+      "tags": ["bulk", "wholesale prices"],
+      "url": "https://azurestandard.com"
+    },
+    {
+      "id": "radiant",
+      "name": "Radiant Life",
+      "category": "Traditional Foods",
+      "highlight": "Organ meats, raw dairy, ancestral nutrition",
+      "why": "Sources traditional, nutrient-dense foods that are hard to find anywhere else — pasture-raised organ meats, real fermented foods, raw dairy products.",
+      "howItWorks": "Order online, shipped frozen or shelf-stable depending on the product.",
+      "products": ["Organ meats", "Bone broth", "Fermented foods", "Traditional fats"],
+      "certifications": ["Pasture-raised", "Grass-fed"],
+      "tags": ["ancestral", "nutrient-dense"],
+      "url": "https://radiantlifecatalog.com"
+    },
+    {
+      "id": "onceagain",
+      "name": "Once Again Nut Butter",
+      "category": "Grocery & Pantry",
+      "highlight": "Worker-owned co-op, Regenerative Organic Certified, zero additives",
+      "why": "Worker-owned cooperative since 1976. Just nuts (and salt if you want it) — no palm oil, no emulsifiers, no sugar.",
+      "howItWorks": "Order direct or find in stores. Pantry-stable, ships nationwide.",
+      "products": ["Peanut butter", "Almond butter", "Cashew butter", "Tahini", "Honey"],
+      "certifications": ["Regenerative Organic Certified", "USDA Organic", "Non-GMO"],
+      "tags": ["worker-owned", "no additives"],
+      "url": "https://onceagainnutbutter.com"
+    },
+    {
+      "id": "primal",
+      "name": "Primal Pastures",
+      "category": "Meat & Seafood",
+      "highlight": "Only widely available soy-free, corn-free pasture-raised poultry",
+      "why": "Family farm in California. Chicken raised on pasture without soy or corn feed — extremely rare in commercial poultry.",
+      "howItWorks": "Order online, frozen, shipped nationwide in insulated boxes.",
+      "products": ["Pasture-raised chicken", "Turkey", "Beef", "Lamb"],
+      "certifications": ["Pasture-raised", "Soy-free", "Corn-free"],
+      "tags": ["soy-free", "pasture-raised"],
+      "url": "https://primalpastures.com"
+    },
+    {
+      "id": "paleovalley",
+      "name": "Paleovalley",
+      "category": "Snacks & Supplements",
+      "highlight": "Cleanest meat snacks, naturally fermented, third-party tested",
+      "why": "100% grass-fed beef sticks naturally fermented (not chemically cured). No sugar, no soy, no junk.",
+      "howItWorks": "One-time orders or subscribe and save. Shelf-stable, ships nationwide.",
+      "products": ["Beef sticks", "Pork sticks", "Bone broth protein", "Supplements"],
+      "certifications": ["Grass-fed", "Naturally fermented", "Third-party tested"],
+      "tags": ["grass-fed", "no sugar"],
+      "url": "https://paleovalley.com"
+    }
+  ],
+  "farms": [
+    {
+      "id": "blueridge",
+      "name": "Heritage Vegetable Farm (example)",
+      "state": "VA",
+      "products": ["Vegetables", "Eggs", "Herbs"],
+      "certifications": ["Organic", "Non-GMO"],
+      "emoji": "🌿",
+      "description": "Example profile: a family farm growing heirloom vegetables and pasture-raised eggs with no synthetic inputs."
+    },
+    {
+      "id": "sundown",
+      "name": "Grass-Fed Ranch (example)",
+      "state": "CA",
+      "products": ["Beef", "Pork", "Lamb"],
+      "certifications": ["Grass-Fed", "Humane Certified"],
+      "emoji": "🐄",
+      "description": "Example profile: 100% grass-fed, pasture-raised meats from animals raised without antibiotics or added hormones."
+    },
+    {
+      "id": "morningdew",
+      "name": "Biodynamic Orchard (example)",
+      "state": "OR",
+      "products": ["Fruits", "Berries", "Jams"],
+      "certifications": ["USDA Organic", "Biodynamic"],
+      "emoji": "🍓",
+      "description": "Example profile: a certified biodynamic orchard offering seasonal fruit and small-batch preserves without refined sugar."
+    },
+    {
+      "id": "clearwater",
+      "name": "Grass-Fed Dairy (example)",
+      "state": "VT",
+      "products": ["Milk", "Cheese", "Butter"],
+      "certifications": ["Organic", "A2 Milk"],
+      "emoji": "🧀",
+      "description": "Example profile: A2-protein dairy from grass-fed Jersey cows, no rBGH or antibiotics."
+    },
+    {
+      "id": "prairie",
+      "name": "Regenerative Grain Farm (example)",
+      "state": "KS",
+      "products": ["Wheat", "Corn", "Oats"],
+      "certifications": ["Non-GMO", "Regenerative"],
+      "emoji": "🌾",
+      "description": "Example profile: ancient grain varieties grown with regenerative practices and stone-milled on site."
+    },
+    {
+      "id": "goldenhive",
+      "name": "Raw Honey Apiary (example)",
+      "state": "TX",
+      "products": ["Raw Honey", "Beeswax", "Pollen"],
+      "certifications": ["Raw", "Wildflower"],
+      "emoji": "🍯",
+      "description": "Example profile: hives managed without chemicals, producing unfiltered, unpasteurized raw honey."
+    },
+    {
+      "id": "sunflower",
+      "name": "Heirloom Market Garden (example)",
+      "state": "PA",
+      "products": ["Heirloom Vegetables", "Microgreens", "Herbs"],
+      "certifications": ["Certified Naturally Grown"],
+      "emoji": "🌻",
+      "description": "Example profile: a small family farm growing 60+ heirloom varieties using no-till regenerative methods."
+    },
+    {
+      "id": "cascade",
+      "name": "Pasture Poultry Farm (example)",
+      "state": "WA",
+      "products": ["Pasture Chicken", "Eggs", "Turkey"],
+      "certifications": ["Pasture-Raised", "Soy-Free"],
+      "emoji": "🐔",
+      "description": "Example profile: a mobile-coop pasture system rotating birds daily on fresh grass with non-GMO, soy-free feed."
+    }
+  ]
+}
