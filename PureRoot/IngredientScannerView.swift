@@ -145,19 +145,29 @@ struct IngredientScannerView: View {
                 if let brand = product.brandName {
                     Text(brand).font(.caption).foregroundStyle(.secondary)
                 }
-                if let nova = product.nova_group, let desc = product.novaDescription {
-                    HStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    if let grade = product.nutritionGrade {
+                        Text("Nutri-Score \(grade.uppercased())")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(nutriColor(grade).opacity(0.18))
+                            .foregroundStyle(nutriColor(grade))
+                            .clipShape(Capsule())
+                    }
+                    if let nova = product.nova_group {
                         Text("NOVA \(nova)")
                             .font(.caption2.weight(.bold))
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(novaColor(nova).opacity(0.18))
                             .foregroundStyle(novaColor(nova))
                             .clipShape(Capsule())
-                        Text(desc)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
                     }
+                }
+                if let desc = product.novaDescription {
+                    Text(desc)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
             }
             Spacer()
@@ -176,6 +186,17 @@ struct IngredientScannerView: View {
         case 2: return .mint
         case 3: return .orange
         case 4: return .red
+        default: return .gray
+        }
+    }
+
+    private func nutriColor(_ grade: String) -> Color {
+        switch grade.lowercased() {
+        case "a": return .green
+        case "b": return .mint
+        case "c": return .yellow
+        case "d": return .orange
+        case "e": return .red
         default: return .gray
         }
     }
@@ -454,37 +475,79 @@ struct IngredientScannerView: View {
     }
 
     private func scoreCard(_ analysis: IngredientAnalysis) -> some View {
-        HStack(spacing: 20) {
-            ZStack {
-                Circle().fill(analysis.gradeColor.opacity(0.15))
-                Circle().stroke(analysis.gradeColor, lineWidth: 4)
-                VStack(spacing: 0) {
-                    Text("\(analysis.score)")
-                        .font(.system(size: 32, weight: .bold))
-                    Text("/ 100")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+        let s = analysis.pureScore
+        return VStack(spacing: 14) {
+            HStack(spacing: 20) {
+                ZStack {
+                    Circle().fill(s.band.color.opacity(0.15))
+                    Circle().stroke(s.band.color, lineWidth: 4)
+                    VStack(spacing: 0) {
+                        Text("\(s.total)")
+                            .font(.system(size: 32, weight: .bold))
+                        Text("/ 100")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
-            .frame(width: 96, height: 96)
+                .frame(width: 96, height: 96)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Grade \(analysis.grade)")
-                    .font(.title.bold())
-                    .foregroundStyle(analysis.gradeColor)
-                Text(verdict(for: analysis))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Button {
-                    showSources = true
-                } label: {
-                    Label("Sources & citations", systemImage: "books.vertical")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(s.band.rawValue)
+                        .font(.title.bold())
+                        .foregroundStyle(s.band.color)
+                    Text("PureScore")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Button {
+                        showSources = true
+                    } label: {
+                        Label("Sources & citations", systemImage: "books.vertical")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                Spacer()
             }
-            Spacer()
+
+            VStack(spacing: 8) {
+                if s.hasNutritionData {
+                    componentBar(label: "Nutrition", value: s.nutrition, max: 60, color: .green)
+                } else {
+                    HStack {
+                        Text("Nutrition")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("Scan barcode for nutrition")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                componentBar(label: "Additives & chemicals", value: s.additives, max: 30, color: .orange)
+                componentBar(label: "Organic bonus", value: s.organic, max: 10, color: .mint)
+            }
+
+            if s.redCapped {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.octagon.fill")
+                        .foregroundStyle(.red)
+                    Text("Capped at 49 — contains a high-risk additive or contaminant.")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                }
+            }
+
+            if !s.hasNutritionData {
+                Text("Nutrition needs a barcode scan; this score is based on additives and organic sourcing only.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding()
         .background(Color.prCard)
@@ -492,6 +555,29 @@ struct IngredientScannerView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16).stroke(Color.prDivider, lineWidth: 0.5)
         )
+    }
+
+    private func componentBar(label: String, value: Int, max: Int, color: Color) -> some View {
+        VStack(spacing: 3) {
+            HStack {
+                Text(label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(value)/\(max)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(color)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(color.opacity(0.15))
+                    Capsule()
+                        .fill(color)
+                        .frame(width: geo.size.width * CGFloat(max == 0 ? 0 : Double(value) / Double(max)))
+                }
+            }
+            .frame(height: 6)
+        }
     }
 
     private func summaryStrip(_ analysis: IngredientAnalysis) -> some View {
@@ -762,7 +848,11 @@ struct IngredientScannerView: View {
     }
 
     private func analyze() {
-        withAnimation { analysis = IngredientAnalyzer.analyze(inputText, novaGroup: scannedProduct?.nova_group) }
+        withAnimation {
+            analysis = IngredientAnalyzer.analyze(inputText,
+                                                  novaGroup: scannedProduct?.nova_group,
+                                                  nutriScoreGrade: scannedProduct?.nutritionGrade)
+        }
         expandedID = nil
     }
 
@@ -785,15 +875,6 @@ struct IngredientScannerView: View {
         }
     }
 
-    private func verdict(for analysis: IngredientAnalysis) -> String {
-        switch analysis.grade {
-        case "A": return "Excellent — mostly clean ingredients."
-        case "B": return "Good — a few concerns to be aware of."
-        case "C": return "Mixed bag — several ingredients to watch."
-        case "D": return "Concerning — many problematic ingredients."
-        default: return "Avoid — multiple harmful ingredients detected."
-        }
-    }
 }
 
 #Preview {

@@ -241,4 +241,56 @@ struct IngredientAnalyzerTests {
         let analysis = IngredientAnalyzer.analyze("water, salt", novaGroup: 4)
         #expect(analysis.verdict != .clean)
     }
+
+    // MARK: - PureScore (Yuka-style /100)
+
+    @Test("Nutri-Score letters map to nutrition points")
+    func nutritionPointsMapping() {
+        #expect(IngredientAnalyzer.nutritionPoints(fromGrade: "a") == 60)
+        #expect(IngredientAnalyzer.nutritionPoints(fromGrade: "e") == 5)
+        #expect(IngredientAnalyzer.nutritionPoints(fromGrade: "z") == nil)
+        #expect(IngredientAnalyzer.nutritionPoints(fromGrade: nil) == nil)
+    }
+
+    @Test("A clean organic grade-A product scores near 100 (Excellent)")
+    func cleanOrganicScoresExcellent() {
+        let s = IngredientAnalyzer.analyze("organic rolled oats, water", nutriScoreGrade: "a").pureScore
+        #expect(s.hasNutritionData)
+        #expect(s.nutrition == 60)
+        #expect(s.organic == 10)
+        #expect(s.total == 100)
+        #expect(s.band == .excellent)
+    }
+
+    @Test("A red additive caps the total at 49 even with perfect nutrition")
+    func redAdditiveCapsAt49() {
+        let s = IngredientAnalyzer.analyze("organic spinach, red 40", nutriScoreGrade: "a").pureScore
+        #expect(s.redCapped)
+        #expect(s.total <= 49)
+    }
+
+    @Test("Organic certification adds the 10-point bonus")
+    func organicBonusApplied() {
+        let s = IngredientAnalyzer.analyze("organic olive oil", nutriScoreGrade: "c").pureScore
+        #expect(s.organic == 10)
+    }
+
+    @Test("With no nutrition data the score is reweighted and flagged")
+    func noNutritionDataReweighted() {
+        let s = IngredientAnalyzer.analyze("water, salt").pureScore
+        #expect(!s.hasNutritionData)
+        #expect(s.nutrition == 0)
+    }
+
+    @Test("PureScore bands map from the total")
+    func bandThresholds() {
+        func band(_ total: Int) -> PureScore.Band {
+            PureScore(nutrition: 0, additives: 0, organic: 0, total: total,
+                      hasNutritionData: true, redCapped: false).band
+        }
+        #expect(band(90) == .excellent)
+        #expect(band(60) == .good)
+        #expect(band(30) == .mediocre)
+        #expect(band(10) == .bad)
+    }
 }

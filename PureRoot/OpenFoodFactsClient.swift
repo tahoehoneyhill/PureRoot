@@ -13,6 +13,8 @@ struct OpenFoodFactsProduct: Codable {
     let additives_tags: [String]?
     let image_front_url: String?
     let image_url: String?
+    let nutriscore_grade: String?
+    let nutrition_grades: String?
 
     var displayName: String { product_name ?? "Unknown product" }
     var brandName: String? { brands?.split(separator: ",").first.map { String($0).trimmingCharacters(in: .whitespaces) } }
@@ -20,6 +22,15 @@ struct OpenFoodFactsProduct: Codable {
         if let s = image_front_url, let u = URL(string: s) { return u }
         if let s = image_url, let u = URL(string: s) { return u }
         return nil
+    }
+
+    /// Nutri-Score letter (a–e) from whichever Open Food Facts field is present.
+    var nutritionGrade: String? {
+        let raw = (nutriscore_grade ?? nutrition_grades)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard let g = raw, ["a", "b", "c", "d", "e"].contains(g) else { return nil }
+        return g
     }
 
     var novaDescription: String? {

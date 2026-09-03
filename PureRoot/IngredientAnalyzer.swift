@@ -150,6 +150,47 @@ struct ShopperCheck: Identifiable {
     let detail: String
 }
 
+/// A Yuka-style 0–100 score built from three transparent parts:
+/// nutrition /60 (from Nutri-Score), additives & chemicals /30, and an
+/// organic /10 bonus. A high-risk ("red") additive or contaminant caps the
+/// total at 49 no matter how good the rest is.
+struct PureScore {
+    let nutrition: Int      // 0...60 (0 when no nutrition data)
+    let additives: Int      // 0...30
+    let organic: Int        // 0...10
+    let total: Int          // 0...100
+    /// False when no Nutri-Score was available (e.g. a pasted list); the total
+    /// is then reweighted from additives + organic and flagged in the UI.
+    let hasNutritionData: Bool
+    /// True when a red additive/contaminant forced the 49 cap.
+    let redCapped: Bool
+
+    enum Band: String {
+        case excellent = "Excellent"
+        case good = "Good"
+        case mediocre = "Mediocre"
+        case bad = "Bad"
+
+        var color: Color {
+            switch self {
+            case .excellent: return .green
+            case .good: return .mint
+            case .mediocre: return .orange
+            case .bad: return .red
+            }
+        }
+    }
+
+    var band: Band {
+        switch total {
+        case 75...100: return .excellent
+        case 50..<75: return .good
+        case 25..<50: return .mediocre
+        default: return .bad
+        }
+    }
+}
+
 struct IngredientEntry {
     let canonicalName: String
     let aliases: [String]
@@ -204,6 +245,8 @@ struct IngredientAnalysis {
     /// True when the product is ultra-processed — either NOVA 4 from the
     /// database, or enough ultra-processing markers in the ingredient list.
     let isUltraProcessed: Bool
+    /// Yuka-style 0–100 score (nutrition /60 + additives /30 + organic /10).
+    let pureScore: PureScore
 
     var avoidCount: Int { ingredients.filter { $0.risk == .avoid }.count }
     var cautionCount: Int { ingredients.filter { $0.risk == .caution }.count }
@@ -852,7 +895,7 @@ enum IngredientAnalyzer {
                         alternative: "—"),
     ]
 
-    static func analyze(_ text: String, novaGroup: Int? = nil) -> IngredientAnalysis {
+    static func analyze(_ text: String, novaGroup: Int? = nil, nutriScoreGrade: String? = nil) -> IngredientAnalysis {
         let separators = CharacterSet(charactersIn: ",;()[]")
         let raws = text
             .components(separatedBy: separators)
@@ -915,10 +958,90 @@ enum IngredientAnalyzer {
         default: grade = "F"
         }
 
+        let pureScore = computePureScore(ingredients: ingredients,
+                                         exposures: exposures,
+                                         isUltraProcessed: isUltraProcessed,
+                                         nutriScoreGrade: nutriScoreGrade)
+
         return IngredientAnalysis(score: score, grade: grade, ingredients: ingredients,
                                   contaminantExposures: exposures, novaGroup: novaGroup,
                                   ultraProcessedMarkers: ultraProcessedMarkers,
-                                  isUltraProcessed: isUltraProcessed)
+                                  isUltraProcessed: isUltraProcessed, pureScore: pureScore)
+    }
+
+    /// Nutrition points (0–60) mapped from a Nutri-Score letter (a best … e worst).
+    static func nutritionPoints(fromGrade grade: String?) -> Int? {
+        switch grade?.lowercased() {
+        case "a": return 60
+        case "b": return 45
+        case "c": return 30
+        case "d": return 15
+        case "e": return 5
+        default: return nil
+        }
+    }
+
+    /// Builds the Yuka-style /100 score. Additives/chemicals and the organic
+    /// bonus come from PureRoot's own analysis; nutrition comes from Nutri-Score
+    /// when a scanned product provides it.
+    private static func computePureScore(ingredients: [AnalyzedIngredient],
+                                         exposures: [ContaminantExposure],
+                                         isUltraProcessed: Bool,
+                                         nutriScoreGrade: String?) -> PureScore {
+        // Additives & chemicals /30
+        var additives = 30
+        for ing in ingredients {
+            switch ing.entry?.risk {
+            case .avoid: additives -= 10
+            case .caution: additives -= 5
+            case .moderate: additives -= 2
+            default: break
+            }
+        }
+        for exposure in exposures { additives -= min(exposure.penalty / 2, 8) }
+        if isUltraProcessed { additives -= 4 }
+        additives = max(0, min(30, additives))
+
+        // Organic /10
+        let hasOrganic = ingredients.contains { $0.entry?.canonicalName == "Organic" }
+        let organic = hasOrganic ? 10 : 0
+
+        // Nutrition /60 (from Nutri-Score, when available)
+        let nutritionPointsOrNil = nutritionPoints(fromGrade: nutriScoreGrade)
+
+        var total: Int
+        let hasNutritionData: Bool
+        if let nutrition = nutritionPointsOrNil {
+            total = nutrition + additives + organic
+            hasNutritionData = true
+        } else {
+            // No nutrition facts: reweight the two known parts (max 40) to /100.
+            total = Int((Double(additives + organic) / 40.0 * 100.0).rounded())
+            hasNutritionData = false
+        }
+
+        // Red rule: any high-risk additive/contaminant caps the total at 49.
+        let hasRedAdditive = ingredients.contains {
+            $0.entry?.risk == .avoid
+                || $0.entry?.carcinogen == .known
+                || $0.entry?.carcinogen == .probable
+        }
+        let hasRedContaminant = exposures.contains {
+            $0.risk == .avoid || $0.carcinogen == .known || $0.carcinogen == .probable
+        }
+        var redCapped = false
+        if (hasRedAdditive || hasRedContaminant) && total > 49 {
+            total = 49
+            redCapped = true
+        }
+        total = max(0, min(100, total))
+
+        return PureScore(nutrition: nutritionPointsOrNil ?? 0,
+                         additives: additives,
+                         organic: organic,
+                         total: total,
+                         hasNutritionData: hasNutritionData,
+                         redCapped: redCapped)
     }
 
     /// Whole-word(s) containment: true only when `term` appears in `text`

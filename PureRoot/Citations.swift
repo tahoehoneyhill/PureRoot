@@ -53,11 +53,16 @@ enum Citations {
                name: "NOVA — Open Food Facts",
                detail: "Ultra-processed food (NOVA group) classification",
                url: URL(string: "https://world.openfoodfacts.org/nova")!),
+        Source(id: "nutriscore",
+               name: "Nutri-Score — Open Food Facts",
+               detail: "Nutritional quality grade (A–E) used for the nutrition score",
+               url: URL(string: "https://world.openfoodfacts.org/nutriscore")!),
     ]
 
     static let iarcURL = all.first { $0.id == "iarc" }!.url
     static let usdaPDPURL = all.first { $0.id == "usda-pdp" }!.url
     static let novaURL = all.first { $0.id == "nova" }!.url
+    static let nutriScoreURL = all.first { $0.id == "nutriscore" }!.url
 
     static let disclaimer = "PureRootFood provides educational information from the public sources above, not medical advice. Consult a healthcare professional for personal health decisions."
 
